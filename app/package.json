@@ -1,0 +1,53 @@
+{
+  "name": "bstech-prensa",
+  "version": "0.1.0",
+  "description": "App desktop BStech para integracao da prensa de ruptura via Modbus RTU",
+  "main": "out/main/index.js",
+  "author": "TARS A.I (Miguel Ribeiro)",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "electron-vite preview",
+    "build:win": "electron-vite build && electron-builder --win",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "modbus-serial": "^8.0.16",
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "electron": "^31.4.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.45",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.3"
+  },
+  "build": {
+    "appId": "com.bstech.prensa",
+    "productName": "BStech Prensa",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "resources/icon.ico"
+    }
+  }
+}

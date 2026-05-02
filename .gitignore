@@ -1,0 +1,45 @@
+# Dependencias
+node_modules/
+package-lock.json.bak
+
+# Builds e outputs
+out/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Electron
+release/
+*.exe
+*.dmg
+*.AppImage
+*.snap
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.local.json
+bstech-prensa-config.json
+
+# Outputs gerados
+*.png.tmp
+prompt.txt
+
+# Sistema
+Thumbs.db
+ehthumbs.db
+Desktop.ini
