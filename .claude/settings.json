@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Agent",
+      "Skill",
+      "WebFetch",
+      "WebSearch",
+      "ToolSearch"
+    ]
+  },
+  "enabledPlugins": {
+    "design-engineer@design-engineer": true,
+    "frontend-design@claude-code-plugins": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/User/case/.venv/Scripts/python.exe\" \"C:/Users/User/case/.claude/skills/embeddings/scripts/recall.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

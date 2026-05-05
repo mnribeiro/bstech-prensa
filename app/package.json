@@ -7,6 +7,8 @@
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:real": "cross-env BSTECH_PRESS_MODE=modbus electron-vite dev",
+    "start:real": "cross-env BSTECH_PRESS_MODE=modbus electron-vite preview",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
@@ -29,6 +31,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
     "electron": "^31.4.0",
     "electron-builder": "^24.13.3",
     "electron-vite": "^2.3.0",

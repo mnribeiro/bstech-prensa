@@ -1,15 +1,7 @@
 import { getClient, getClientId } from './supabase'
 import type { Calibration } from '@shared/types'
 
-const DEMO_MODE = import.meta.env.DEV
-
 export async function saveCalibration(cal: Calibration): Promise<string> {
-  if (DEMO_MODE) {
-    // Em dev, só simula sem mexer no banco
-    await new Promise((r) => setTimeout(r, 400))
-    return 'demo-' + Date.now()
-  }
-
   const sb = await getClient()
   const clientId = await getClientId()
 
@@ -58,8 +50,6 @@ export async function saveCalibration(cal: Calibration): Promise<string> {
 }
 
 export async function listCalibrations(): Promise<Calibration[]> {
-  if (DEMO_MODE) return []
-
   const sb = await getClient()
   const clientId = await getClientId()
   const { data, error } = await sb
@@ -76,8 +66,6 @@ export async function listCalibrations(): Promise<Calibration[]> {
 }
 
 export async function nextCalibrationNumber(): Promise<string> {
-  if (DEMO_MODE) return 'FRE-988'
-
   const sb = await getClient()
   const clientId = await getClientId()
   const { data, error } = await sb
