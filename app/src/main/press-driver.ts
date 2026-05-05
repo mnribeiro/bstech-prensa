@@ -143,6 +143,42 @@ export class PressDriver extends EventEmitter {
     return this.readings
   }
 
+  /**
+   * Captura uma janela de leituras sem entrar em sessão de ruptura.
+   * Usado em calibração: estabiliza com média da janela.
+   */
+  async captureSnapshot(
+    durationMs: number = 2000
+  ): Promise<{ media_kgf: number; samples: number[]; duration_ms: number }> {
+    if (!this.connected) throw new Error('Prensa não conectada')
+    const samples: number[] = []
+    const start = Date.now()
+    const interval = this.config.poll_interval_ms
+
+    while (Date.now() - start < durationMs) {
+      try {
+        const v = this.mode === 'mock' ? this.readMockSnapshot() : await this.readModbus()
+        if (v !== null) samples.push(v)
+      } catch (err) {
+        this.emit('error', err instanceof Error ? err : new Error(String(err)))
+      }
+      await new Promise((r) => setTimeout(r, interval))
+    }
+
+    const media = samples.length ? samples.reduce((a, b) => a + b, 0) / samples.length : 0
+    return {
+      media_kgf: Math.round(media * 100) / 100,
+      samples,
+      duration_ms: Date.now() - start
+    }
+  }
+
+  private readMockSnapshot(): number {
+    // Mock: simula carga estabilizada com ruído ±0.5%
+    const base = 50000
+    return base + (Math.random() - 0.5) * 500
+  }
+
   getLiveState(): PressLiveState {
     return {
       connected: this.connected,

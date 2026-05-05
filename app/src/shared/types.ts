@@ -118,6 +118,51 @@ export interface SealRuptureResponse {
   status: SpecimenStatus
 }
 
+// Snapshot de leitura pra calibração (lê janela fixa, retorna média + amostras)
+export interface CalibrationSnapshot {
+  /** Média estabilizada das leituras */
+  media_kgf: number
+  /** Amostras coletadas durante a janela */
+  samples: number[]
+  /** Tempo total da captura em ms */
+  duration_ms: number
+}
+
+export interface CalibrationPoint {
+  ordem: number
+  carga_real_kgf: number
+  leitura_1_kgf: number | null
+  leitura_2_kgf: number | null
+  leitura_3_kgf: number | null
+  media_kgf: number | null
+  desvio_padrao: number | null
+  erro_exatidao_pct: number | null
+  repetitividade_pct: number | null
+}
+
+export interface Calibration {
+  id?: string
+  client_id?: string
+  equipment_id: string | null
+  numero: string
+  identificacao: string | null
+  equipamento_nome: string
+  carga_digital_ton: number | null
+  transdutor_marca: string | null
+  escala_min_kgf: number
+  escala_max_kgf: number
+  validade: string // YYYY-MM-DD
+  temperatura_celsius: number | null
+  calibrado_por: string | null
+  observacoes: string | null
+  pdf_path: string | null
+  points: CalibrationPoint[]
+  created_at?: string
+}
+
+/** Pontos default do FRE-987 (kgf) */
+export const DEFAULT_CALIBRATION_POINTS_KGF = [10000, 20000, 30000, 50000, 70000, 80000, 90000]
+
 // Configuracao da prensa (carregada do arquivo de config)
 export interface PressConfig {
   port: string // COM3, COM4, etc

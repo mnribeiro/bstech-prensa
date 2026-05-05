@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { IPC } from '../shared/ipc'
 import { PressDriver } from './press-driver'
 import { loadConfig, patchPress, patchApp } from './config-store'
+import { generateCalibrationPdf } from './calibration-pdf'
+import type { Calibration } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let press: PressDriver | null = null
@@ -74,6 +76,19 @@ function registerIpc() {
     return c.app
   })
   ipcMain.handle(IPC.APP_SET_CONFIG, async (_e, patch) => patchApp(patch))
+
+  ipcMain.handle(IPC.CALIBRATION_CAPTURE, async (_e, durationMs?: number) => {
+    if (!press) throw new Error('Driver nao inicializado')
+    return press.captureSnapshot(durationMs ?? 2000)
+  })
+  ipcMain.handle(IPC.CALIBRATION_GENERATE_PDF, async (_e, calibration: Calibration) => {
+    try {
+      const pdfPath = await generateCalibrationPdf(calibration)
+      return { ok: true, path: pdfPath }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 }
 
 app.whenReady().then(async () => {

@@ -22,7 +22,11 @@ export const IPC = {
 
   // Logs locais (SQLite futuro)
   LOG_SAVE_SESSION: 'log:save-session',
-  LOG_LIST_PENDING: 'log:list-pending'
+  LOG_LIST_PENDING: 'log:list-pending',
+
+  // Calibração
+  CALIBRATION_CAPTURE: 'calibration:capture',
+  CALIBRATION_GENERATE_PDF: 'calibration:generate-pdf'
 } as const
 
 export type IpcChannel = typeof IPC[keyof typeof IPC]
@@ -47,5 +51,13 @@ export interface ElectronAPI {
     setConfig: (
       cfg: Partial<{ supabase_url: string; supabase_anon_key: string; client_id: string }>
     ) => Promise<void>
+  }
+  calibration: {
+    capture: (
+      durationMs?: number
+    ) => Promise<{ media_kgf: number; samples: number[]; duration_ms: number }>
+    generatePdf: (
+      calibration: import('./types').Calibration
+    ) => Promise<{ ok: boolean; path?: string; error?: string }>
   }
 }
