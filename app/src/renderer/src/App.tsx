@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SessionProvider, useSession } from './store/session'
 import { OperatorBar } from './components/OperatorBar'
-import { Sidebar } from './components/Sidebar'
+import { Sidebar, type AppMode } from './components/Sidebar'
 import { CPStage } from './components/CPStage'
 import { InfoPanel } from './components/InfoPanel'
 import { RuptureModal } from './components/RuptureModal'
+import { CalibrationView } from './components/CalibrationView'
 import {
   fetchPendingSpecimens,
   fetchRuptureOperators,
@@ -14,6 +15,7 @@ import {
 function Inner() {
   const { state, dispatch } = useSession()
   const ruptureTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [appMode, setAppMode] = useState<AppMode>('rupture')
 
   // ---- Bootstrap: carrega cadastros + conecta prensa ----
   useEffect(() => {
@@ -117,14 +119,22 @@ function Inner() {
     <div className="h-full flex flex-col">
       <OperatorBar />
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
-        <CPStage />
-        <InfoPanel onStart={handleStart} onStop={handleStop} onReset={handleReset} />
+        <Sidebar appMode={appMode} onModeChange={setAppMode} />
+        {appMode === 'calibration' ? (
+          <CalibrationView />
+        ) : (
+          <>
+            <CPStage />
+            <InfoPanel onStart={handleStart} onStop={handleStop} onReset={handleReset} />
+          </>
+        )}
       </div>
-      <RuptureModal
-        onSealed={handleSealed}
-        onError={(msg) => dispatch({ type: 'toast', message: msg })}
-      />
+      {appMode === 'rupture' && (
+        <RuptureModal
+          onSealed={handleSealed}
+          onError={(msg) => dispatch({ type: 'toast', message: msg })}
+        />
+      )}
       {state.toast && (
         <div className="fixed bottom-4 right-4 bg-bs-danger/90 text-white px-4 py-2 rounded-md shadow-lg max-w-sm">
           <div className="flex items-start gap-3">

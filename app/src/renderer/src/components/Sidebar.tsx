@@ -3,7 +3,14 @@ import { useSession } from '../store/session'
 import { relativeDays } from '../lib/format'
 import type { Specimen } from '@shared/types'
 
-export function Sidebar() {
+export type AppMode = 'rupture' | 'calibration'
+
+interface SidebarProps {
+  appMode: AppMode
+  onModeChange: (m: AppMode) => void
+}
+
+export function Sidebar({ appMode, onModeChange }: SidebarProps) {
   const { state, dispatch } = useSession()
 
   const grouped = useMemo(() => {
@@ -18,6 +25,28 @@ export function Sidebar() {
 
   return (
     <aside className="w-[320px] border-r border-bs-border bg-bs-surface flex flex-col">
+      <div className="px-3 py-2 border-b border-bs-border flex gap-1">
+        <button
+          onClick={() => onModeChange('rupture')}
+          className={`flex-1 text-xs px-2 py-1.5 rounded transition ${
+            appMode === 'rupture'
+              ? 'bg-bs-accent text-white'
+              : 'bg-bs-border/40 text-bs-text-mute hover:bg-bs-border/60'
+          }`}
+        >
+          Ruptura
+        </button>
+        <button
+          onClick={() => onModeChange('calibration')}
+          className={`flex-1 text-xs px-2 py-1.5 rounded transition ${
+            appMode === 'calibration'
+              ? 'bg-bs-accent text-white'
+              : 'bg-bs-border/40 text-bs-text-mute hover:bg-bs-border/60'
+          }`}
+        >
+          Calibração
+        </button>
+      </div>
       <div className="px-4 py-3 border-b border-bs-border">
         <div className="label-mute">Fila de ruptura</div>
         <div className="mt-1 text-bs-text font-medium text-sm">
