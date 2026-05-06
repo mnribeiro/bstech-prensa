@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { getClient } from '../lib/supabase'
 import { errorMessage } from '../lib/error-message'
 import { UpdateBanner } from './UpdateBanner'
+import { useAppVersion } from '../hooks/useAppVersion'
 import logoBStech from '../assets/bstech-logo-white.png'
 
 interface Props {
@@ -13,6 +14,7 @@ export function LoginScreen({ onLogged }: Props) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const version = useAppVersion()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -43,7 +45,7 @@ export function LoginScreen({ onLogged }: Props) {
           <img src={logoBStech} alt="BStech" className="h-14 w-auto" />
           <div className="flex items-baseline gap-2 leading-none">
             <span className="text-bs-text font-semibold text-sm">Prensa</span>
-            <span className="text-bs-text-mute text-[10px]">v0.1</span>
+            <span className="text-bs-text-mute text-[10px]">v{version ?? '–'}</span>
           </div>
         </div>
 

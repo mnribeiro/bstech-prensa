@@ -1,6 +1,7 @@
 import { useSession } from '../store/session'
 import { getClient } from '../lib/supabase'
 import { UpdateBanner } from './UpdateBanner'
+import { useAppVersion } from '../hooks/useAppVersion'
 import logoBStech from '../assets/bstech-logo-white.png'
 import { LogOut } from 'lucide-react'
 
@@ -13,6 +14,7 @@ export function OperatorBar() {
   const { state, dispatch } = useSession()
   const op = state.operators.find((o) => o.id === state.currentOperatorId) ?? null
   const eq = state.equipments.find((e) => e.id === state.currentEquipmentId) ?? null
+  const version = useAppVersion()
 
   return (
     <header className="h-14 px-6 flex items-center justify-between border-b border-bs-border bg-bs-surface">
@@ -20,7 +22,7 @@ export function OperatorBar() {
         <img src={logoBStech} alt="BStech" className="h-12 w-auto" />
         <div className="flex items-baseline gap-1.5 leading-none">
           <span className="text-bs-text font-medium text-sm tracking-tight">Prensa</span>
-          <span className="text-bs-text-mute text-[10px]">v0.1</span>
+          <span className="text-bs-text-mute text-[10px]">v{version ?? '–'}</span>
         </div>
       </div>
       <div className="flex items-center gap-6 text-sm">
