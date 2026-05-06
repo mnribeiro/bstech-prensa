@@ -24,11 +24,14 @@ interface AppConfig {
   client_id: string
 }
 
+// Defaults vêm de variáveis injetadas no build (electron.vite.config.ts).
+// Em dev local: app/.env (gitignored). Em CI: secrets do GitHub.
+// Vazios são tratados como "não configurado" no boot — o usuário pode
+// sobrescrever pelo arquivo de config persistido em userData.
 const DEFAULT_APP_CONFIG: AppConfig = {
-  supabase_url: 'https://xbybwkfmbsknwlwuohbj.supabase.co',
-  supabase_anon_key:
-    '<REDACTED_BSTECH_ANON_KEY>',
-  client_id: 'd8f8e8e5-974f-4bd1-b658-2621e50b2021' // BS Tech (sandbox)
+  supabase_url: process.env.BSTECH_SUPABASE_URL ?? '',
+  supabase_anon_key: process.env.BSTECH_SUPABASE_ANON_KEY ?? '',
+  client_id: process.env.BSTECH_CLIENT_ID ?? ''
 }
 
 interface FullConfig {

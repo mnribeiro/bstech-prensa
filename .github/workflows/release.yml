@@ -36,4 +36,7 @@ jobs:
       - name: Build + publish (electron-builder)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BSTECH_SUPABASE_URL: ${{ secrets.BSTECH_SUPABASE_URL }}
+          BSTECH_SUPABASE_ANON_KEY: ${{ secrets.BSTECH_SUPABASE_ANON_KEY }}
+          BSTECH_CLIENT_ID: ${{ secrets.BSTECH_CLIENT_ID }}
         run: npm run build:win -- --publish always
