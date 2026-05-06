@@ -5,16 +5,17 @@
 @layer base {
   html, body, #root { height: 100%; }
   body {
-    background: #0a0e14;
-    color: #e6edf3;
+    background: #141414;
+    color: #f2f2f2;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
     user-select: none;
     -webkit-font-smoothing: antialiased;
   }
   /* Scrollbars dark */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #30363d; }
+  ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3f3f3f; }
 }
 
 @layer components {
@@ -22,12 +23,29 @@
     @apply bg-bs-panel border border-bs-border rounded-lg;
   }
   .label-mute {
-    @apply text-bs-text-mute text-xs uppercase tracking-wider;
+    @apply text-bs-text-mute text-xs uppercase tracking-wider font-medium;
   }
   .btn-primary {
-    @apply bg-bs-accent text-white px-4 py-2 rounded-md hover:brightness-110 transition;
+    @apply bg-bs-accent text-white px-4 py-2 rounded-md font-medium hover:brightness-110
+      focus:outline-none focus:ring-2 focus:ring-bs-accent-ring transition;
   }
   .btn-ghost {
-    @apply px-3 py-1.5 rounded-md text-bs-text-dim hover:bg-bs-border hover:text-bs-text transition;
+    @apply px-3 py-1.5 rounded-md text-bs-text-dim hover:bg-bs-panel hover:text-bs-text transition;
+  }
+  .btn-outline {
+    @apply px-3 py-1.5 rounded-md border border-bs-border text-bs-text bg-transparent
+      hover:bg-bs-panel transition;
+  }
+  .card {
+    @apply bg-bs-panel border border-bs-border rounded-lg;
+  }
+  .badge {
+    @apply inline-flex items-center text-[11px] px-2 py-0.5 rounded-full font-medium;
+  }
+  .badge-late { @apply bg-bs-danger/15 text-bs-danger; }
+  .badge-soon { @apply bg-bs-warning/15 text-bs-warning; }
+  .badge-ok   { @apply bg-bs-text-mute/15 text-bs-text-dim; }
+  .row-hover {
+    @apply hover:bg-bs-panel/60 transition-colors;
   }
 }

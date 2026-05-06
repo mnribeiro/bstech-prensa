@@ -4,21 +4,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta BStech (extraida do simulator HTML)
+        // Paleta BStech (alinhada com o webapp em ../bstech-sistema)
         bs: {
-          bg: '#0a0e14',
-          surface: '#0f1419',
-          panel: '#161b22',
-          border: '#21262d',
-          'border-soft': '#1f242c',
-          text: '#e6edf3',
-          'text-dim': '#8b949e',
-          'text-mute': '#6e7681',
-          accent: '#58a6ff',
-          'accent-soft': 'rgba(88,166,255,0.12)',
-          success: '#3fb950',
-          warning: '#d29922',
-          danger: '#f85149',
+          bg: '#141414',          // background (hsl 0 0% 8%)
+          surface: '#0d0d0d',     // sidebar (hsl 0 0% 5%)
+          panel: '#1c1c1c',       // card (hsl 0 0% 11%)
+          'panel-soft': '#212121',
+          border: '#262626',      // border (hsl 0 0% 15%)
+          'border-soft': '#1f1f1f',
+          text: '#f2f2f2',        // foreground (hsl 0 0% 95%)
+          'text-dim': '#adadad',  // muted-foreground (hsl 0 0% 68%)
+          'text-mute': '#737373',
+          accent: '#3b82f6',      // primary (hsl 217 91% 60%)
+          'accent-soft': 'rgba(59,130,246,0.14)',
+          'accent-ring': 'rgba(59,130,246,0.35)',
+          success: '#22c55e',
+          warning: '#f59e0b',
+          danger: '#ef4444',
           purple: '#a371f7'
         }
       },
