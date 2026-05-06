@@ -108,20 +108,50 @@ function registerIpc() {
   ipcMain.handle(IPC.UPDATE_GET_STATE, async () => getUpdateState())
 }
 
-app.whenReady().then(async () => {
-  await setupPress()
-  registerIpc()
-  await createWindow()
-  setupAutoUpdate(() => mainWindow)
-  // Checa update logo após boot (em prod). Em dev, vira no-op.
-  void checkForUpdates()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+// Garante uma única instância. Importante porque o NSIS auto-update precisa
+// conseguir matar tudo antes de instalar. Se uma segunda janela abrir, joga foco
+// na existente em vez de duplicar processo.
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
   })
+
+  app.whenReady().then(async () => {
+    await setupPress()
+    registerIpc()
+    await createWindow()
+    setupAutoUpdate(() => mainWindow)
+    // Checa update logo após boot (em prod). Em dev, vira no-op.
+    void checkForUpdates()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
+
+// Libera a serial port antes do app encerrar — sem isso, o instalador NSIS de
+// uma versão nova pode reclamar que o processo ainda está rodando.
+let isCleaningUp = false
+app.on('before-quit', async (e) => {
+  if (isCleaningUp) return
+  if (!press) return
+  isCleaningUp = true
+  e.preventDefault()
+  try {
+    await press.disconnect()
+  } catch (err) {
+    console.error('[main] disconnect on quit failed:', err)
+  }
+  app.exit(0)
 })
 
-app.on('window-all-closed', async () => {
-  if (press) await press.disconnect()
+app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
