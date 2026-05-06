@@ -1,4 +1,12 @@
 import { useSession } from '../store/session'
+import { getClient } from '../lib/supabase'
+import logoBStech from '../assets/bstech-logo-white.png'
+import { LogOut } from 'lucide-react'
+
+async function handleLogout() {
+  const sb = await getClient()
+  await sb.auth.signOut()
+}
 
 export function OperatorBar() {
   const { state, dispatch } = useSession()
@@ -7,9 +15,12 @@ export function OperatorBar() {
 
   return (
     <header className="h-14 px-6 flex items-center justify-between border-b border-bs-border bg-bs-surface">
-      <div className="flex items-center gap-3">
-        <span className="font-semibold tracking-tight text-bs-text">BStech Prensa</span>
-        <span className="text-bs-text-mute text-xs">v0.1 dev</span>
+      <div className="flex items-center gap-1">
+        <img src={logoBStech} alt="BStech" className="h-12 w-auto" />
+        <div className="flex items-baseline gap-1.5 leading-none">
+          <span className="text-bs-text font-medium text-sm tracking-tight">Prensa</span>
+          <span className="text-bs-text-mute text-[10px]">v0.1</span>
+        </div>
       </div>
       <div className="flex items-center gap-6 text-sm">
         <PressStatus />
@@ -47,6 +58,14 @@ export function OperatorBar() {
           </select>
           {op && <span className="text-bs-success text-xs">·</span>}
         </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 text-xs text-bs-text-dim hover:text-bs-danger px-2.5 py-1.5 rounded-md border border-bs-border hover:border-bs-danger/40 hover:bg-bs-danger/10 transition"
+          title="Sair da conta"
+        >
+          <LogOut size={13} />
+          Sair
+        </button>
       </div>
     </header>
   )
