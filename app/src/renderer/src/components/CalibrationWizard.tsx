@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { computePoint } from '../lib/calibration-math'
 import { saveCalibration, nextCalibrationNumber } from '../lib/calibration-api'
+import { errorMessage } from '../lib/error-message'
 import type { Calibration, CalibrationPoint } from '@shared/types'
 import { DEFAULT_CALIBRATION_POINTS_KGF } from '@shared/types'
 
@@ -13,15 +14,15 @@ type ReadingIdx = 1 | 2 | 3
 export function CalibrationWizard({ onDone }: Props) {
   const [header, setHeader] = useState<Partial<Calibration>>({
     numero: '',
-    identificacao: 'FASTEL ENGENHARIA',
-    equipamento_nome: 'Prensa de Concreto 90 Ton.',
-    carga_digital_ton: 90,
-    transdutor_marca: 'Xidibei',
+    identificacao: null,
+    equipamento_nome: '',
+    carga_digital_ton: null,
+    transdutor_marca: null,
     escala_min_kgf: 0,
-    escala_max_kgf: 90000,
+    escala_max_kgf: 0,
     validade: '',
     temperatura_celsius: null,
-    calibrado_por: 'Brasil Solos Ltda'
+    calibrado_por: null
   })
 
   const [points, setPoints] = useState<CalibrationPoint[]>(
@@ -79,7 +80,7 @@ export function CalibrationWizard({ onDone }: Props) {
         return copy
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorMessage(err))
     } finally {
       setCapturing(null)
     }
@@ -125,7 +126,7 @@ export function CalibrationWizard({ onDone }: Props) {
       setSuccess(`Calibração salva. PDF: ${cal.pdf_path}`)
       setTimeout(() => onDone(), 2000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorMessage(err))
     } finally {
       setSaving(false)
     }

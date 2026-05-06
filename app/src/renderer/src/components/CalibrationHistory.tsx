@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listCalibrations } from '../lib/calibration-api'
+import { errorMessage } from '../lib/error-message'
 import type { Calibration } from '@shared/types'
 
 interface Props {
@@ -14,7 +15,7 @@ export function CalibrationHistory({ onNew }: Props) {
   useEffect(() => {
     listCalibrations()
       .then(setList)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(errorMessage(e)))
       .finally(() => setLoading(false))
   }, [])
 
@@ -59,7 +60,17 @@ export function CalibrationHistory({ onNew }: Props) {
                   {c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}
                 </td>
                 <td className="border border-bs-border p-2 text-center">
-                  {c.pdf_path ? '✓' : '—'}
+                  {c.pdf_path ? (
+                    <button
+                      onClick={() => window.bstech.calibration.openPdf(c.pdf_path!)}
+                      title={c.pdf_path}
+                      className="text-bs-accent hover:underline"
+                    >
+                      Abrir
+                    </button>
+                  ) : (
+                    '—'
+                  )}
                 </td>
               </tr>
             ))}

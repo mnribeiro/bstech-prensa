@@ -17,7 +17,7 @@ async function createWindow() {
     minHeight: 760,
     show: false,
     title: 'BStech Prensa',
-    backgroundColor: '#0a0e14',
+    backgroundColor: '#141414',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -46,7 +46,11 @@ async function createWindow() {
 
 async function setupPress() {
   const cfg = await loadConfig()
-  press = new PressDriver(cfg.press)
+  // Em produção (empacotado) o default é modbus — quem instala o app tá com hardware.
+  // Em dev sem env var, default é mock pra UI funcionar sem prensa.
+  press = new PressDriver(cfg.press, {
+    defaultMode: app.isPackaged ? 'modbus' : 'mock'
+  })
 
   press.on('reading', (r) => mainWindow?.webContents.send(IPC.PRESS_READING, r))
   press.on('state', (s) => mainWindow?.webContents.send(IPC.PRESS_STATE, s))
@@ -88,6 +92,9 @@ function registerIpc() {
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
+  })
+  ipcMain.handle(IPC.CALIBRATION_OPEN_PDF, async (_e, pdfPath: string) => {
+    await shell.openPath(pdfPath)
   })
 }
 

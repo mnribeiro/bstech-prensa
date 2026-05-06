@@ -24,7 +24,9 @@ export class PressDriver extends EventEmitter {
   private config: PressConfig
   private mode: 'mock' | 'modbus'
   private modbusClient: any = null // ModbusRTU lazy import
+  private connectInFlight: Promise<{ ok: boolean; error?: string }> | null = null
   private pollHandle: NodeJS.Timeout | null = null
+  private idleHandle: NodeJS.Timeout | null = null
   private sessionStartedAt: number | null = null
   private readings: PressReading[] = []
   private peakKgf = 0
@@ -39,10 +41,18 @@ export class PressDriver extends EventEmitter {
   private mockPhase: 'idle' | 'loading' | 'ruptured' = 'idle'
   private mockPeakTarget = 0
 
-  constructor(config: PressConfig) {
+  constructor(config: PressConfig, opts?: { defaultMode?: 'mock' | 'modbus' }) {
     super()
     this.config = config
-    this.mode = (process.env.BSTECH_PRESS_MODE === 'modbus' ? 'modbus' : 'mock')
+    // Prioridade: env var explícita > default passado > 'mock'
+    const envMode = process.env.BSTECH_PRESS_MODE
+    if (envMode === 'modbus' || envMode === 'mock') {
+      this.mode = envMode
+    } else if (opts?.defaultMode) {
+      this.mode = opts.defaultMode
+    } else {
+      this.mode = 'mock'
+    }
   }
 
   setConfig(patch: Partial<PressConfig>) {
@@ -64,31 +74,40 @@ export class PressDriver extends EventEmitter {
 
   async connect(port: string): Promise<{ ok: boolean; error?: string }> {
     if (this.connected) return { ok: true }
-    try {
-      if (this.mode === 'mock') {
+    if (this.connectInFlight) return this.connectInFlight
+    this.connectInFlight = (async () => {
+      try {
+        if (this.mode === 'mock') {
+          this.connected = true
+          this.currentPort = 'MOCK'
+          this.emitState()
+          return { ok: true }
+        }
+        const ModbusRTUMod = await import('modbus-serial')
+        const ModbusRTU = (ModbusRTUMod as any).default ?? ModbusRTUMod
+        this.modbusClient = new ModbusRTU()
+        await this.modbusClient.connectRTUBuffered(port, { baudRate: this.config.baud_rate })
+        this.modbusClient.setID(this.config.modbus_address)
+        this.modbusClient.setTimeout(500)
         this.connected = true
-        this.currentPort = 'MOCK'
+        this.currentPort = port
+        this.startIdlePolling()
         this.emitState()
         return { ok: true }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error('[press] connect failed:', msg)
+        return { ok: false, error: msg }
+      } finally {
+        this.connectInFlight = null
       }
-      const ModbusRTUMod = await import('modbus-serial')
-      const ModbusRTU = (ModbusRTUMod as any).default ?? ModbusRTUMod
-      this.modbusClient = new ModbusRTU()
-      await this.modbusClient.connectRTUBuffered(port, { baudRate: this.config.baud_rate })
-      this.modbusClient.setID(this.config.modbus_address)
-      this.modbusClient.setTimeout(500)
-      this.connected = true
-      this.currentPort = port
-      this.emitState()
-      return { ok: true }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      return { ok: false, error: msg }
-    }
+    })()
+    return this.connectInFlight
   }
 
   async disconnect(): Promise<void> {
     this.stopSession()
+    this.stopIdlePolling()
     if (this.modbusClient && this.modbusClient.isOpen) {
       await new Promise<void>((res) => this.modbusClient.close(() => res()))
     }
@@ -101,6 +120,7 @@ export class PressDriver extends EventEmitter {
   startSession(): { ok: boolean; error?: string } {
     if (!this.connected) return { ok: false, error: 'Prensa nao conectada' }
     if (this.pollHandle) return { ok: true }
+    this.stopIdlePolling()
     this.sessionStartedAt = Date.now()
     this.readings = []
     this.peakKgf = 0
@@ -124,6 +144,7 @@ export class PressDriver extends EventEmitter {
       this.pollHandle = null
     }
     this.mockPhase = 'idle'
+    if (this.connected) this.startIdlePolling()
     this.emitState()
   }
 
@@ -151,18 +172,26 @@ export class PressDriver extends EventEmitter {
     durationMs: number = 2000
   ): Promise<{ media_kgf: number; samples: number[]; duration_ms: number }> {
     if (!this.connected) throw new Error('Prensa não conectada')
+    // Pausa idle polling pra não competir pela porta serial (modbus-serial é single-request)
+    const idleWasRunning = this.idleHandle !== null
+    if (idleWasRunning) this.stopIdlePolling()
+
     const samples: number[] = []
     const start = Date.now()
     const interval = this.config.poll_interval_ms
 
-    while (Date.now() - start < durationMs) {
-      try {
-        const v = this.mode === 'mock' ? this.readMockSnapshot() : await this.readModbus()
-        if (v !== null) samples.push(v)
-      } catch (err) {
-        this.emit('error', err instanceof Error ? err : new Error(String(err)))
+    try {
+      while (Date.now() - start < durationMs) {
+        try {
+          const v = this.mode === 'mock' ? this.readMockSnapshot() : await this.readModbus()
+          if (v !== null) samples.push(v)
+        } catch (err) {
+          this.emit('error', err instanceof Error ? err : new Error(String(err)))
+        }
+        await new Promise((r) => setTimeout(r, interval))
       }
-      await new Promise((r) => setTimeout(r, interval))
+    } finally {
+      if (idleWasRunning && this.connected) this.startIdlePolling()
     }
 
     const media = samples.length ? samples.reduce((a, b) => a + b, 0) / samples.length : 0
@@ -194,6 +223,30 @@ export class PressDriver extends EventEmitter {
   }
 
   // ---- INTERNO ----
+
+  private startIdlePolling() {
+    if (this.idleHandle) return
+    // Poll mais lento que sessão (5Hz) — só pra UI saber que sensor responde
+    const intervalMs = Math.max(200, this.config.poll_interval_ms * 2)
+    this.idleHandle = setInterval(async () => {
+      if (this.pollHandle) return // sessão ativa cuida do polling
+      try {
+        const kgf = this.mode === 'mock' ? 0 : await this.readModbus()
+        if (kgf === null) return
+        this.lastSamples = [kgf]
+        this.emitState()
+      } catch (err) {
+        this.emit('error', err instanceof Error ? err : new Error(String(err)))
+      }
+    }, intervalMs)
+  }
+
+  private stopIdlePolling() {
+    if (this.idleHandle) {
+      clearInterval(this.idleHandle)
+      this.idleHandle = null
+    }
+  }
 
   private async poll() {
     try {

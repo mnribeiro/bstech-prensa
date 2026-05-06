@@ -6,11 +6,14 @@ import { CPStage } from './components/CPStage'
 import { InfoPanel } from './components/InfoPanel'
 import { RuptureModal } from './components/RuptureModal'
 import { CalibrationView } from './components/CalibrationView'
+import { LoginScreen } from './components/LoginScreen'
 import {
   fetchPendingSpecimens,
   fetchRuptureOperators,
   fetchPressEquipment
 } from './lib/supabase'
+import { getClient } from './lib/supabase'
+import { errorMessage } from './lib/error-message'
 
 function Inner() {
   const { state, dispatch } = useSession()
@@ -33,10 +36,7 @@ function Inner() {
         dispatch({ type: 'set_equipments', equipments: eqs })
       } catch (err) {
         console.error('[bootstrap]', err)
-        dispatch({
-          type: 'toast',
-          message: err instanceof Error ? err.message : String(err)
-        })
+        dispatch({ type: 'toast', message: errorMessage(err) })
       }
     })()
     return () => {
@@ -73,7 +73,7 @@ function Inner() {
       if (ruptureTimeoutRef.current) clearTimeout(ruptureTimeoutRef.current)
       ruptureTimeoutRef.current = setTimeout(() => {
         dispatch({ type: 'open_modal' })
-      }, 1600)
+      }, 3500)
     })
     return () => {
       offState()
@@ -152,10 +152,49 @@ function Inner() {
   )
 }
 
-export function App() {
+function AuthGate() {
+  const [authState, setAuthState] = useState<'loading' | 'logged-in' | 'logged-out'>('loading')
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const sb = await getClient()
+        const { data } = await sb.auth.getSession()
+        if (!mounted) return
+        setAuthState(data.session ? 'logged-in' : 'logged-out')
+
+        const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+          if (!mounted) return
+          setAuthState(session ? 'logged-in' : 'logged-out')
+        })
+        return () => sub.subscription.unsubscribe()
+      } catch {
+        if (mounted) setAuthState('logged-out')
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  if (authState === 'loading') {
+    return (
+      <div className="h-full flex items-center justify-center bg-bs-bg text-bs-text-mute text-sm">
+        Carregando...
+      </div>
+    )
+  }
+  if (authState === 'logged-out') {
+    return <LoginScreen onLogged={() => setAuthState('logged-in')} />
+  }
   return (
     <SessionProvider>
       <Inner />
     </SessionProvider>
   )
+}
+
+export function App() {
+  return <AuthGate />
 }

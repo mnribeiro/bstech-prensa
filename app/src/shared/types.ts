@@ -43,6 +43,11 @@ export interface Specimen {
   project_name: string
   batch_code: string
   fck_spec_mpa: number | null
+  structure_name: string | null
+  structure_type: string | null
+  supplier_name: string | null
+  molder_name: string | null
+  molding_date: string | null
   // Resultado (preenchido quando rompe)
   applied_load_ton: number | null
   calculated_fck_mpa: number | null

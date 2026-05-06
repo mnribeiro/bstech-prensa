@@ -6,8 +6,7 @@ export async function saveCalibration(cal: Calibration): Promise<string> {
   const clientId = await getClientId()
 
   const { data: header, error: e1 } = await sb
-    .schema('calibration')
-    .from('calibrations')
+    .from('calibration_calibrations')
     .insert({
       client_id: clientId,
       equipment_id: cal.equipment_id,
@@ -43,7 +42,7 @@ export async function saveCalibration(cal: Calibration): Promise<string> {
     repetitividade_pct: p.repetitividade_pct
   }))
 
-  const { error: e2 } = await sb.schema('calibration').from('calibration_points').insert(points)
+  const { error: e2 } = await sb.from('calibration_calibration_points').insert(points)
   if (e2) throw e2
 
   return calibrationId
@@ -53,15 +52,16 @@ export async function listCalibrations(): Promise<Calibration[]> {
   const sb = await getClient()
   const clientId = await getClientId()
   const { data, error } = await sb
-    .schema('calibration')
-    .from('calibrations')
-    .select('*, calibration_points(*)')
+    .from('calibration_calibrations')
+    .select('*, calibration_calibration_points(*)')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map((row: any) => ({
     ...row,
-    points: (row.calibration_points ?? []).sort((a: any, b: any) => a.ordem - b.ordem)
+    points: (row.calibration_calibration_points ?? []).sort(
+      (a: any, b: any) => a.ordem - b.ordem
+    )
   }))
 }
 
@@ -69,8 +69,7 @@ export async function nextCalibrationNumber(): Promise<string> {
   const sb = await getClient()
   const clientId = await getClientId()
   const { data, error } = await sb
-    .schema('calibration')
-    .from('calibrations')
+    .from('calibration_calibrations')
     .select('numero')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })

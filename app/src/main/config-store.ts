@@ -13,7 +13,9 @@ const DEFAULT_PRESS_CONFIG: PressConfig = {
   register: 0,
   poll_interval_ms: 100,
   rupture_drop_threshold_kgf: 800,
-  value_scale: 1.0
+  // Novus N1500-LC com DECP=2: cada unidade raw = 10 kgf (display em ton com 2 casas).
+  // Ajuste se a configuração de casas decimais do indicador mudar.
+  value_scale: 10
 }
 
 interface AppConfig {

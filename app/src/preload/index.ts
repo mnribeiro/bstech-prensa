@@ -37,7 +37,8 @@ const api: ElectronAPI = {
   },
   calibration: {
     capture: (durationMs) => ipcRenderer.invoke(IPC.CALIBRATION_CAPTURE, durationMs),
-    generatePdf: (calibration) => ipcRenderer.invoke(IPC.CALIBRATION_GENERATE_PDF, calibration)
+    generatePdf: (calibration) => ipcRenderer.invoke(IPC.CALIBRATION_GENERATE_PDF, calibration),
+    openPdf: (path) => ipcRenderer.invoke(IPC.CALIBRATION_OPEN_PDF, path)
   }
 }
 

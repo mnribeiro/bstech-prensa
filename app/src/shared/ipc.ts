@@ -26,7 +26,8 @@ export const IPC = {
 
   // Calibração
   CALIBRATION_CAPTURE: 'calibration:capture',
-  CALIBRATION_GENERATE_PDF: 'calibration:generate-pdf'
+  CALIBRATION_GENERATE_PDF: 'calibration:generate-pdf',
+  CALIBRATION_OPEN_PDF: 'calibration:open-pdf'
 } as const
 
 export type IpcChannel = typeof IPC[keyof typeof IPC]
@@ -59,5 +60,6 @@ export interface ElectronAPI {
     generatePdf: (
       calibration: import('./types').Calibration
     ) => Promise<{ ok: boolean; path?: string; error?: string }>
+    openPdf: (path: string) => Promise<void>
   }
 }

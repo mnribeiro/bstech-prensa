@@ -1,8 +1,20 @@
 import PDFDocument from 'pdfkit'
 import { app } from 'electron'
-import { promises as fsp, createWriteStream } from 'node:fs'
+import { promises as fsp, createWriteStream, existsSync } from 'node:fs'
 import path from 'node:path'
 import type { Calibration } from '../shared/types'
+
+function resolveLogoPath(): string | null {
+  // Em dev: app/resources/logo-bs.png; em prod: extraResources do electron-builder
+  const candidates = [
+    path.join(app.getAppPath(), 'resources', 'logo-bs.png'),
+    path.join(process.resourcesPath ?? '', 'logo-bs.png')
+  ]
+  for (const p of candidates) {
+    if (p && existsSync(p)) return p
+  }
+  return null
+}
 
 const FOOTER_NOTES = `Repetitividade:
 Variação das medidas obtidas por um único operador, utilizando o mesmo equipamento de medição e método, ao medir repetidas vezes uma mesma grandeza de uma única peça (corpo de prova).
@@ -11,7 +23,11 @@ Célula de Carga da marca Alfa Instrumentos, número 1141609, modelo C 200T, ano
 Certificado de Calibração Nº 1240346 - CETEC / SENAI / FIEMG.`
 
 export async function generateCalibrationPdf(cal: Calibration): Promise<string> {
-  const dir = path.join(app.getPath('userData'), 'calibracoes')
+  // Em dev (não empacotado), salva em <projectRoot>/docs/Calibração pra ficar versionado/visível.
+  // Em prod (build), salva em userData (cada cliente tem o próprio).
+  const dir = !app.isPackaged
+    ? path.resolve(app.getAppPath(), '..', 'docs', 'Calibração')
+    : path.join(app.getPath('userData'), 'calibracoes')
   await fsp.mkdir(dir, { recursive: true })
   const filePath = path.join(dir, `${cal.numero}.pdf`)
 
@@ -19,9 +35,20 @@ export async function generateCalibrationPdf(cal: Calibration): Promise<string> 
   const stream = createWriteStream(filePath)
   doc.pipe(stream)
 
-  // Cabeçalho
-  doc.fontSize(16).font('Helvetica-Bold').text('CALIBRAÇÃO COMPRESSÃO LEITOR DIGITAL', { align: 'center' })
-  doc.moveDown()
+  // Cabeçalho com logo (canto superior direito) + título
+  const logoPath = resolveLogoPath()
+  if (logoPath) {
+    try {
+      doc.image(logoPath, doc.page.width - 140, 30, { fit: [100, 40] })
+    } catch {
+      // ignora se imagem inválida
+    }
+  }
+  doc.fontSize(16).font('Helvetica-Bold').text('CALIBRAÇÃO COMPRESSÃO LEITOR DIGITAL', 40, 50, {
+    align: 'center',
+    width: doc.page.width - 80
+  })
+  doc.moveDown(2)
 
   doc.fontSize(10).font('Helvetica')
   const header: Array<[string, string]> = [
