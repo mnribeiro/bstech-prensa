@@ -180,3 +180,32 @@ export interface PressConfig {
   /** Multiplicador opcional caso o registrador retorne valor escalado */
   value_scale: number // ex 1.0 (raw) ou 0.1
 }
+
+// Estado do auto-update (electron-updater).
+// idle      → ainda não checou ou checou e não tem update
+// checking  → checagem em andamento
+// available → versão nova achada, baixando
+// ready     → download concluído, basta reiniciar pra aplicar
+// error     → falhou em algum passo (mostra mensagem)
+// disabled  → modo dev / instância não empacotada (auto-update desligado)
+export type UpdatePhase =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'ready'
+  | 'error'
+  | 'disabled'
+
+export interface UpdateState {
+  phase: UpdatePhase
+  /** Versão atual do app rodando */
+  current_version: string
+  /** Versão remota encontrada (quando phase >= 'available') */
+  remote_version?: string
+  /** Bytes baixados (durante 'available') */
+  downloaded_bytes?: number
+  /** Bytes totais (durante 'available') */
+  total_bytes?: number
+  /** Mensagem de erro (quando phase = 'error') */
+  error?: string
+}

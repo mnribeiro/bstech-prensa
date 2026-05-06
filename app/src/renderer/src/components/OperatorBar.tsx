@@ -1,5 +1,6 @@
 import { useSession } from '../store/session'
 import { getClient } from '../lib/supabase'
+import { UpdateBanner } from './UpdateBanner'
 import logoBStech from '../assets/bstech-logo-white.png'
 import { LogOut } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export function OperatorBar() {
         </div>
       </div>
       <div className="flex items-center gap-6 text-sm">
+        <UpdateBanner variant="compact" />
         <PressStatus />
         <div className="flex items-center gap-2">
           <span className="label-mute">Equipamento</span>

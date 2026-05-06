@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getClient } from '../lib/supabase'
 import { errorMessage } from '../lib/error-message'
+import { UpdateBanner } from './UpdateBanner'
 import logoBStech from '../assets/bstech-logo-white.png'
 
 interface Props {
@@ -30,7 +31,10 @@ export function LoginScreen({ onLogged }: Props) {
   }
 
   return (
-    <div className="h-full flex items-center justify-center bg-bs-bg">
+    <div className="h-full flex flex-col items-center justify-center bg-bs-bg gap-4">
+      <div className="w-[420px] max-w-[90vw]">
+        <UpdateBanner variant="login" />
+      </div>
       <form
         onSubmit={handleSubmit}
         className="bg-bs-surface border border-bs-border rounded-lg p-8 w-[380px] space-y-5"

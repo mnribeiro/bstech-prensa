@@ -1,0 +1,39 @@
+name: Release
+
+# Dispara em push de tag vX.Y.Z. Workflow:
+#   1. Build do Electron (Windows)
+#   2. electron-builder publica .exe + latest.yml no GitHub Release da tag
+#   3. Clientes com app antigo detectam o novo latest.yml e fazem auto-update
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build + publish (electron-builder)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:win -- --publish always

@@ -39,6 +39,16 @@ const api: ElectronAPI = {
     capture: (durationMs) => ipcRenderer.invoke(IPC.CALIBRATION_CAPTURE, durationMs),
     generatePdf: (calibration) => ipcRenderer.invoke(IPC.CALIBRATION_GENERATE_PDF, calibration),
     openPdf: (path) => ipcRenderer.invoke(IPC.CALIBRATION_OPEN_PDF, path)
+  },
+  update: {
+    check: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
+    install: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+    getState: () => ipcRenderer.invoke(IPC.UPDATE_GET_STATE),
+    onState: (cb) => {
+      const handler = (_e: any, s: any) => cb(s)
+      ipcRenderer.on(IPC.UPDATE_STATE, handler)
+      return () => ipcRenderer.off(IPC.UPDATE_STATE, handler)
+    }
   }
 }
 

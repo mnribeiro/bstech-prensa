@@ -4,6 +4,12 @@ import { IPC } from '../shared/ipc'
 import { PressDriver } from './press-driver'
 import { loadConfig, patchPress, patchApp } from './config-store'
 import { generateCalibrationPdf } from './calibration-pdf'
+import {
+  setupAutoUpdate,
+  checkForUpdates,
+  quitAndInstall,
+  getUpdateState
+} from './auto-update'
 import type { Calibration } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -96,12 +102,19 @@ function registerIpc() {
   ipcMain.handle(IPC.CALIBRATION_OPEN_PDF, async (_e, pdfPath: string) => {
     await shell.openPath(pdfPath)
   })
+
+  ipcMain.handle(IPC.UPDATE_CHECK, async () => checkForUpdates())
+  ipcMain.handle(IPC.UPDATE_INSTALL, async () => quitAndInstall())
+  ipcMain.handle(IPC.UPDATE_GET_STATE, async () => getUpdateState())
 }
 
 app.whenReady().then(async () => {
   await setupPress()
   registerIpc()
   await createWindow()
+  setupAutoUpdate(() => mainWindow)
+  // Checa update logo após boot (em prod). Em dev, vira no-op.
+  void checkForUpdates()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
