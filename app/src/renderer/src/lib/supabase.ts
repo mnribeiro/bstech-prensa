@@ -106,10 +106,12 @@ function pickStructure(
 export async function fetchRuptureOperators(): Promise<Operator[]> {
   const sb = await getClient()
   const clientId = await getClientId()
+  // O perfil de laboratorio migrou de `role` unico pra flags can_mold/can_rupture
+  // (operador pode ter os dois). Filtramos por can_rupture, nao mais por role.
   const { data, error } = await sb
     .from('operators')
-    .select('id, name, role, client_id')
-    .eq('role', 'rupture')
+    .select('id, name, role, client_id, can_mold, can_rupture')
+    .eq('can_rupture', true)
     .eq('client_id', clientId)
     .order('name')
   if (error) throw error

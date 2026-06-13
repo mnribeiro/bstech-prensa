@@ -61,6 +61,8 @@ export interface Operator {
   name: string
   role: 'molding' | 'rupture'
   client_id: string
+  can_mold?: boolean
+  can_rupture?: boolean
 }
 
 export interface LabEquipment {
