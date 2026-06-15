@@ -39,6 +39,9 @@ bstech-prensa-config.json
 *.png.tmp
 prompt.txt
 
+# Planejamento interno (repo publico, nao versionar)
+docs/plans/
+
 # Sistema
 Thumbs.db
 ehthumbs.db

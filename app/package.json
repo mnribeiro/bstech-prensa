@@ -1,6 +1,6 @@
 {
   "name": "bstech-prensa",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "App desktop BStech para integracao da prensa de ruptura via Modbus RTU",
   "main": "out/main/index.js",
   "author": "TARS A.I (Miguel Ribeiro)",
