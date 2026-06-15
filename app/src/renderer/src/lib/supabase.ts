@@ -75,8 +75,8 @@ export async function fetchPendingSpecimens(): Promise<Specimen[]> {
       correction_factor: row.correction_factor ? Number(row.correction_factor) : null,
       project_id: row.project_id,
       batch_id: row.batch_id,
-      project_name: row.projects?.name?.trim() ?? '—',
-      batch_code: batch?.batch_code ?? '—',
+      project_name: row.projects?.name?.trim() ?? 'n/d',
+      batch_code: batch?.batch_code ?? 'n/d',
       fck_spec_mpa: struct?.target_fck_mpa != null ? Number(struct.target_fck_mpa) : null,
       structure_name: struct?.name ?? null,
       structure_type: struct?.structure_type ?? null,
@@ -156,7 +156,9 @@ export async function sealRupture(payload: SealRupturePayload): Promise<SealRupt
     p_photo_path: payload.photo_path ?? null,
     p_readings: payload.readings,
     p_session_started_at: payload.session_started_at,
-    p_status_override: payload.status_override ?? null
+    p_status_override: payload.status_override ?? null,
+    p_diameter_mm: payload.diameter_mm ?? null,
+    p_height_mm: payload.height_mm ?? null
   })
   if (error) throw error
   return data as SealRuptureResponse

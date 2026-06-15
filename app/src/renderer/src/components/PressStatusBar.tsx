@@ -48,7 +48,7 @@ export function PressStatusBar() {
         />
         <div>
           <div className="text-sm font-medium text-bs-text">
-            {connected ? `Prensa conectada · ${port ?? '—'}` : 'Prensa desconectada'}
+            {connected ? `Prensa conectada · ${port ?? 'n/d'}` : 'Prensa desconectada'}
           </div>
           {connected && (
             <div className="text-xs text-bs-text-mute">

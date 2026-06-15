@@ -52,7 +52,7 @@ async function createWindow() {
 
 async function setupPress() {
   const cfg = await loadConfig()
-  // Em produção (empacotado) o default é modbus — quem instala o app tá com hardware.
+  // Em produção (empacotado) o default é modbus; quem instala o app tá com hardware.
   // Em dev sem env var, default é mock pra UI funcionar sem prensa.
   press = new PressDriver(cfg.press, {
     defaultMode: app.isPackaged ? 'modbus' : 'mock'
@@ -136,7 +136,7 @@ if (!gotLock) {
   })
 }
 
-// Libera a serial port antes do app encerrar — sem isso, o instalador NSIS de
+// Libera a serial port antes do app encerrar; sem isso, o instalador NSIS de
 // uma versão nova pode reclamar que o processo ainda está rodando.
 let isCleaningUp = false
 app.on('before-quit', async (e) => {

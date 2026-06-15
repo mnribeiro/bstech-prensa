@@ -57,7 +57,7 @@ export function CalibrationHistory({ onNew }: Props) {
                 <td className="border border-bs-border p-2">{c.equipamento_nome}</td>
                 <td className="border border-bs-border p-2 text-center">{c.validade}</td>
                 <td className="border border-bs-border p-2 text-center">
-                  {c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}
+                  {c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : 'n/d'}
                 </td>
                 <td className="border border-bs-border p-2 text-center">
                   {c.pdf_path ? (
@@ -69,7 +69,7 @@ export function CalibrationHistory({ onNew }: Props) {
                       Abrir
                     </button>
                   ) : (
-                    '—'
+                    'n/d'
                   )}
                 </td>
               </tr>

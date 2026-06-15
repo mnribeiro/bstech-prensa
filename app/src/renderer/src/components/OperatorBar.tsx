@@ -1,9 +1,9 @@
-import { useSession } from '../store/session'
+import { useSession, isDemoEmail } from '../store/session'
 import { getClient } from '../lib/supabase'
 import { UpdateBanner } from './UpdateBanner'
 import { useAppVersion } from '../hooks/useAppVersion'
 import logoBStech from '../assets/bstech-logo-white.png'
-import { LogOut } from 'lucide-react'
+import { LogOut, FlaskConical } from 'lucide-react'
 
 async function handleLogout() {
   const sb = await getClient()
@@ -22,10 +22,24 @@ export function OperatorBar() {
         <img src={logoBStech} alt="BStech" className="h-12 w-auto" />
         <div className="flex items-baseline gap-1.5 leading-none">
           <span className="text-bs-text font-medium text-sm tracking-tight">Prensa</span>
-          <span className="text-bs-text-mute text-[10px]">v{version ?? '–'}</span>
+          <span className="text-bs-text-mute text-[10px]">v{version ?? '...'}</span>
         </div>
       </div>
       <div className="flex items-center gap-6 text-sm">
+        {isDemoEmail(state.demoEmail) && (
+          <button
+            onClick={() => dispatch({ type: 'set_demo_mode', on: !state.demoMode })}
+            title="Modo demo: simula a prensa pra apresentação (só nesta conta de teste)"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
+              state.demoMode
+                ? 'border-bs-purple/50 bg-bs-purple/20 text-bs-purple'
+                : 'border-bs-border text-bs-text-dim hover:border-bs-purple/40 hover:text-bs-purple'
+            }`}
+          >
+            <FlaskConical size={13} />
+            Modo demo: {state.demoMode ? 'ON' : 'OFF'}
+          </button>
+        )}
         <UpdateBanner variant="compact" />
         <PressStatus />
         <div className="flex items-center gap-2">
@@ -35,7 +49,7 @@ export function OperatorBar() {
             value={state.currentEquipmentId ?? ''}
             onChange={(e) => dispatch({ type: 'select_equipment', id: e.target.value || null })}
           >
-            <option value="">— escolher —</option>
+            <option value="">Selecione</option>
             {state.equipments.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name} {e.serial_number ? `· ${e.serial_number}` : ''}
@@ -53,7 +67,7 @@ export function OperatorBar() {
             value={state.currentOperatorId ?? ''}
             onChange={(e) => dispatch({ type: 'select_operator', id: e.target.value || null })}
           >
-            <option value="">— escolher —</option>
+            <option value="">Selecione</option>
             {state.operators.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
@@ -86,7 +100,7 @@ function PressStatus() {
         }`}
       />
       <span className="text-bs-text-dim text-xs">
-        {ok ? `Prensa conectada (${state.press.port ?? '—'})` : 'Prensa desconectada'}
+        {ok ? `Prensa conectada (${state.press.port ?? 'n/d'})` : 'Prensa desconectada'}
       </span>
     </div>
   )

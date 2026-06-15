@@ -226,7 +226,7 @@ export class PressDriver extends EventEmitter {
 
   private startIdlePolling() {
     if (this.idleHandle) return
-    // Poll mais lento que sessão (5Hz) — só pra UI saber que sensor responde
+    // Poll mais lento que sessão (5Hz), só pra UI saber que sensor responde
     const intervalMs = Math.max(200, this.config.poll_interval_ms * 2)
     this.idleHandle = setInterval(async () => {
       if (this.pollHandle) return // sessão ativa cuida do polling

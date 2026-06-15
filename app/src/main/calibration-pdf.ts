@@ -127,6 +127,6 @@ export async function generateCalibrationPdf(cal: Calibration): Promise<string> 
 }
 
 function fmt(n: number | null): string {
-  if (n == null) return '—'
+  if (n == null) return 'n/d'
   return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 }

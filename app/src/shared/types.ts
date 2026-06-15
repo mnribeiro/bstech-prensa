@@ -110,6 +110,10 @@ export interface SealRupturePayload {
   readings: PressReading[]
   session_started_at: string // ISO timestamp
   status_override?: SpecimenStatus
+  // Medidas do CP confirmadas/editadas na ruptura (a prensa so da a carga).
+  // Quando enviadas, o RPC persiste no specimen e recalcula correcao/fck.
+  diameter_mm?: number
+  height_mm?: number
 }
 
 export interface SealRuptureResponse {

@@ -120,7 +120,7 @@ export function CPStage() {
         </div>
       </div>
 
-      {/* Live readings — card unificado, Carga destacada inline */}
+      {/* Live readings: card unificado, Carga destacada inline */}
       <div
         className={`mt-6 rounded-xl border bg-bs-panel/70 backdrop-blur-sm transition flex items-stretch divide-x divide-bs-border overflow-hidden ${cargaGlow}`}
       >

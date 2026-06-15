@@ -26,7 +26,7 @@ interface AppConfig {
 
 // Defaults vêm de variáveis injetadas no build (electron.vite.config.ts).
 // Em dev local: app/.env (gitignored). Em CI: secrets do GitHub.
-// Vazios são tratados como "não configurado" no boot — o usuário pode
+// Vazios são tratados como "não configurado" no boot; o usuário pode
 // sobrescrever pelo arquivo de config persistido em userData.
 const DEFAULT_APP_CONFIG: AppConfig = {
   supabase_url: process.env.BSTECH_SUPABASE_URL ?? '',

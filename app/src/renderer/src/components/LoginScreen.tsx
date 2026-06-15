@@ -45,7 +45,7 @@ export function LoginScreen({ onLogged }: Props) {
           <img src={logoBStech} alt="BStech" className="h-14 w-auto" />
           <div className="flex items-baseline gap-2 leading-none">
             <span className="text-bs-text font-semibold text-sm">Prensa</span>
-            <span className="text-bs-text-mute text-[10px]">v{version ?? '–'}</span>
+            <span className="text-bs-text-mute text-[10px]">v{version ?? '...'}</span>
           </div>
         </div>
 

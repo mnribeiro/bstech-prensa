@@ -70,7 +70,7 @@ export function UpdateBanner({ variant = 'login' }: { variant?: 'login' | 'compa
     )
   }
 
-  // phase === 'ready' — banner azul forte com botão Atualizar
+  // phase === 'ready': banner azul forte com botão Atualizar
   return (
     <div
       className={`${base} bg-blue-500/15 border-blue-500/50 text-blue-100 ${

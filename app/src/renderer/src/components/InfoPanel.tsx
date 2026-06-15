@@ -20,9 +20,10 @@ interface Props {
   onStart: () => void
   onStop: () => void
   onReset: () => void
+  demoMode?: boolean
 }
 
-export function InfoPanel({ onStart, onStop, onReset }: Props) {
+export function InfoPanel({ onStart, onStop, onReset, demoMode = false }: Props) {
   const { state } = useSession()
   const sp = state.specimens.find((s) => s.id === state.selectedSpecimenId) ?? null
   const eq = state.equipments.find((e) => e.id === state.currentEquipmentId) ?? null
@@ -54,11 +55,11 @@ export function InfoPanel({ onStart, onStop, onReset }: Props) {
         {sp && (
           <Section title="Origem" defaultOpen>
             <Row icon={Building2} label="Obra" value={sp.project_name} />
-            <Row icon={Layers} label="Estrutura" value={sp.structure_name ?? '—'} />
+            <Row icon={Layers} label="Estrutura" value={sp.structure_name ?? 'n/d'} />
             <Row icon={Box} label="Lote" value={sp.batch_code} mono />
-            <Row icon={Truck} label="Concreteira" value={sp.supplier_name ?? '—'} />
-            <Row icon={User} label="Moldador" value={sp.molder_name ?? '—'} />
-            <Row icon={Calendar} label="Moldado em" value={sp.molding_date ?? '—'} />
+            <Row icon={Truck} label="Concreteira" value={sp.supplier_name ?? 'n/d'} />
+            <Row icon={User} label="Moldador" value={sp.molder_name ?? 'n/d'} />
+            <Row icon={Calendar} label="Moldado em" value={sp.molding_date ?? 'n/d'} />
           </Section>
         )}
 
@@ -68,13 +69,13 @@ export function InfoPanel({ onStart, onStop, onReset }: Props) {
             <Row label="Diâmetro" value={`${sp.specimen_diameter_mm} mm`} mono />
             <Row
               label="Altura"
-              value={sp.specimen_height_mm ? `${sp.specimen_height_mm} mm` : '—'}
+              value={sp.specimen_height_mm ? `${sp.specimen_height_mm} mm` : 'n/d'}
               mono
             />
-            <Row label="Peso" value={sp.weight_kg ? `${sp.weight_kg} kg` : '—'} mono />
+            <Row label="Peso" value={sp.weight_kg ? `${sp.weight_kg} kg` : 'n/d'} mono />
             <Row
               label="h/d"
-              value={sp.height_diameter_ratio ? sp.height_diameter_ratio.toFixed(2) : '—'}
+              value={sp.height_diameter_ratio ? sp.height_diameter_ratio.toFixed(2) : 'n/d'}
               mono
             />
             <Row
@@ -100,12 +101,17 @@ export function InfoPanel({ onStart, onStop, onReset }: Props) {
         <div className="label-mute">Operador</div>
         <div className="mt-0.5 text-bs-text font-medium flex items-center gap-1.5 text-sm">
           <User size={13} className="text-bs-text-dim" />
-          {op?.name ?? '—'}
+          {op?.name ?? 'n/d'}
         </div>
       </div>
 
       <div className="p-3 shrink-0">
-        {state.phase === 'idle' && (
+        {state.phase === 'idle' && demoMode && (
+          <p className="text-xs text-bs-purple/80 text-center py-1">
+            Modo demo: inicie o ensaio na barra acima
+          </p>
+        )}
+        {state.phase === 'idle' && !demoMode && (
           <button
             disabled={!canStart}
             onClick={onStart}
@@ -138,7 +144,7 @@ export function InfoPanel({ onStart, onStop, onReset }: Props) {
           </button>
         )}
 
-        {!canStart && state.phase === 'idle' && (
+        {!canStart && state.phase === 'idle' && !demoMode && (
           <p className="text-xs text-bs-text-mute mt-2 text-center">
             {!state.press.connected
               ? 'Prensa não conectada'

@@ -135,7 +135,7 @@ export function CalibrationWizard({ onDone }: Props) {
   return (
     <div className="flex-1 p-6 space-y-6 overflow-auto bg-bs-bg text-bs-text">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Nova Calibração — {header.numero || '...'}</h2>
+        <h2 className="text-2xl font-bold">Nova Calibração: {header.numero || '...'}</h2>
         <button
           onClick={onDone}
           className="text-sm text-bs-text-mute hover:text-bs-text px-3 py-1.5 border border-bs-border rounded"
@@ -248,10 +248,10 @@ export function CalibrationWizard({ onDone }: Props) {
                   )
                 })}
                 <td className="border border-bs-border p-2 text-center">
-                  {p.media_kgf?.toLocaleString('pt-BR') ?? '—'}
+                  {p.media_kgf?.toLocaleString('pt-BR') ?? 'n/d'}
                 </td>
                 <td className="border border-bs-border p-2 text-center">
-                  {p.desvio_padrao?.toFixed(2) ?? '—'}
+                  {p.desvio_padrao?.toFixed(2) ?? 'n/d'}
                 </td>
                 <td
                   className={`border border-bs-border p-2 text-center ${
@@ -260,10 +260,10 @@ export function CalibrationWizard({ onDone }: Props) {
                       : ''
                   }`}
                 >
-                  {p.erro_exatidao_pct?.toFixed(2) ?? '—'}
+                  {p.erro_exatidao_pct?.toFixed(2) ?? 'n/d'}
                 </td>
                 <td className="border border-bs-border p-2 text-center">
-                  {p.repetitividade_pct?.toFixed(2) ?? '—'}
+                  {p.repetitividade_pct?.toFixed(2) ?? 'n/d'}
                 </td>
               </tr>
             ))}
