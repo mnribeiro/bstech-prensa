@@ -7,6 +7,7 @@ import { InfoPanel } from './components/InfoPanel'
 import { RuptureModal } from './components/RuptureModal'
 import { CalibrationView } from './components/CalibrationView'
 import { LoginScreen } from './components/LoginScreen'
+import { DemoControlBar } from './components/DemoControlBar'
 import {
   fetchPendingSpecimens,
   fetchRuptureOperators,
@@ -14,10 +15,19 @@ import {
 } from './lib/supabase'
 import { getClient } from './lib/supabase'
 import { errorMessage } from './lib/error-message'
+import { runDemoSimulation, type DemoHandle } from './lib/demo-runner'
 
 function Inner() {
   const { state, dispatch } = useSession()
   const ruptureTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const demoHandleRef = useRef<DemoHandle | null>(null)
+  // Em modo demo a fonte de verdade é a simulação; o driver real (mock no dev)
+  // fica em idle polling mandando peak=0 via IPC e zeraria a carga. Ref pra os
+  // subscribers do IPC saberem que devem ignorar enquanto o demo está ligado.
+  const demoModeRef = useRef(state.demoMode)
+  useEffect(() => {
+    demoModeRef.current = state.demoMode
+  }, [state.demoMode])
   const [appMode, setAppMode] = useState<AppMode>('rupture')
 
   // ---- Bootstrap: carrega cadastros + conecta prensa ----
@@ -63,11 +73,16 @@ function Inner() {
 
   // ---- IPC subscribers ----
   useEffect(() => {
-    const offState = window.bstech.press.onState((s) => dispatch({ type: 'press_state', state: s }))
-    const offReading = window.bstech.press.onReading((r) =>
+    const offState = window.bstech.press.onState((s) => {
+      if (demoModeRef.current) return // demo controla o estado da prensa
+      dispatch({ type: 'press_state', state: s })
+    })
+    const offReading = window.bstech.press.onReading((r) => {
+      if (demoModeRef.current) return
       dispatch({ type: 'press_reading', reading: r })
-    )
+    })
     const offRupture = window.bstech.press.onRupture(() => {
+      if (demoModeRef.current) return
       dispatch({ type: 'press_rupture' })
       // Modal abre 1.6s depois pra UX (igual ao simulator)
       if (ruptureTimeoutRef.current) clearTimeout(ruptureTimeoutRef.current)
@@ -83,6 +98,65 @@ function Inner() {
     }
   }, [dispatch])
 
+  // ---- Modo demo ----
+  // Quando liga o demo, ja deixa operador + prensa preenchidos (no demo nao se escolhe).
+  useEffect(() => {
+    if (!state.demoMode) return
+    if (!state.currentOperatorId && state.operators[0]) {
+      dispatch({ type: 'select_operator', id: state.operators[0].id })
+    }
+    if (!state.currentEquipmentId && state.equipments[0]) {
+      dispatch({ type: 'select_equipment', id: state.equipments[0].id })
+    }
+  }, [
+    state.demoMode,
+    state.operators,
+    state.equipments,
+    state.currentOperatorId,
+    state.currentEquipmentId,
+    dispatch
+  ])
+
+  // Marca a prensa como "conectada (demo)" pra UI nao mostrar desconectada.
+  useEffect(() => {
+    if (!state.demoMode) return
+    dispatch({
+      type: 'press_state',
+      state: {
+        connected: true,
+        port: 'DEMO',
+        current_kgf: 0,
+        peak_kgf: 0,
+        peak_at_ms: null,
+        reading_count: 0,
+        session_started_at: null,
+        rupture_detected: false,
+        rupture_at: null
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.demoMode, dispatch])
+
+  // Limpa a simulacao se o componente sair
+  useEffect(() => () => demoHandleRef.current?.stop(), [])
+
+  const handleStartDemo = useCallback(() => {
+    const sp = state.specimens.find((s) => s.id === state.selectedSpecimenId)
+    if (!sp) {
+      dispatch({ type: 'toast', message: 'Selecione um CP na fila antes de simular.' })
+      return
+    }
+    demoHandleRef.current?.stop()
+    dispatch({ type: 'reset_session' })
+    dispatch({ type: 'phase', phase: 'loading' })
+    demoHandleRef.current = runDemoSimulation(sp, state.demoOutcome, {
+      reading: (r) => dispatch({ type: 'press_reading', reading: r }),
+      state: (s) => dispatch({ type: 'press_state', state: s }),
+      rupture: () => dispatch({ type: 'press_rupture' }),
+      openModal: () => dispatch({ type: 'open_modal' })
+    })
+  }, [state.specimens, state.selectedSpecimenId, state.demoOutcome, dispatch])
+
   // ---- Acoes ----
   const handleStart = useCallback(async () => {
     const r = await window.bstech.press.startSession()
@@ -91,17 +165,20 @@ function Inner() {
   }, [dispatch])
 
   const handleStop = useCallback(async () => {
+    demoHandleRef.current?.stop()
     await window.bstech.press.stopSession()
     dispatch({ type: 'phase', phase: 'idle' })
   }, [dispatch])
 
   const handleReset = useCallback(async () => {
+    demoHandleRef.current?.stop()
     await window.bstech.press.reset()
     dispatch({ type: 'reset_session' })
   }, [dispatch])
 
   const handleSealed = useCallback(
     async (specimenId: string) => {
+      demoHandleRef.current?.stop()
       await window.bstech.press.reset()
       dispatch({ type: 'specimen_sealed', specimenId })
       // Recarrega fila
@@ -118,6 +195,7 @@ function Inner() {
   return (
     <div className="h-full flex flex-col">
       <OperatorBar />
+      {appMode === 'rupture' && state.demoMode && <DemoControlBar onStart={handleStartDemo} />}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar appMode={appMode} onModeChange={setAppMode} />
         {appMode === 'calibration' ? (
@@ -125,7 +203,12 @@ function Inner() {
         ) : (
           <>
             <CPStage />
-            <InfoPanel onStart={handleStart} onStop={handleStop} onReset={handleReset} />
+            <InfoPanel
+              onStart={handleStart}
+              onStop={handleStop}
+              onReset={handleReset}
+              demoMode={state.demoMode}
+            />
           </>
         )}
       </div>
@@ -154,6 +237,7 @@ function Inner() {
 
 function AuthGate() {
   const [authState, setAuthState] = useState<'loading' | 'logged-in' | 'logged-out'>('loading')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -163,10 +247,12 @@ function AuthGate() {
         const { data } = await sb.auth.getSession()
         if (!mounted) return
         setAuthState(data.session ? 'logged-in' : 'logged-out')
+        setUserEmail(data.session?.user?.email ?? null)
 
         const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
           if (!mounted) return
           setAuthState(session ? 'logged-in' : 'logged-out')
+          setUserEmail(session?.user?.email ?? null)
         })
         return () => sub.subscription.unsubscribe()
       } catch {
@@ -189,7 +275,7 @@ function AuthGate() {
     return <LoginScreen onLogged={() => setAuthState('logged-in')} />
   }
   return (
-    <SessionProvider>
+    <SessionProvider demoEmail={userEmail}>
       <Inner />
     </SessionProvider>
   )

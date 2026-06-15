@@ -1,6 +1,6 @@
 // Dados demo pra rodar o app sem precisar de auth no Supabase.
 // Ativa via VITE_BSTECH_DEMO=1 (ja setado no script `npm run dev`).
-// Usado APENAS no renderer — main process e RPC nao sao tocados.
+// Usado APENAS no renderer, main process e RPC nao sao tocados.
 
 import type { Specimen, Operator, LabEquipment } from '@shared/types'
 
@@ -45,7 +45,7 @@ export const DEMO_SPECIMENS: Specimen[] = [
     correction_factor: 1.0,
     project_id: 'proj-demo-1',
     batch_id: 'b-demo-1',
-    project_name: 'Edificio Aurora — Pilotis L3',
+    project_name: 'Edificio Aurora · Pilotis L3',
     batch_code: 'L-014',
     fck_spec_mpa: 30,
     structure_name: null,
@@ -72,7 +72,7 @@ export const DEMO_SPECIMENS: Specimen[] = [
     correction_factor: 1.0,
     project_id: 'proj-demo-1',
     batch_id: 'b-demo-1',
-    project_name: 'Edificio Aurora — Pilotis L3',
+    project_name: 'Edificio Aurora · Pilotis L3',
     batch_code: 'L-014',
     fck_spec_mpa: 30,
     structure_name: null,
@@ -153,7 +153,7 @@ export const DEMO_SPECIMENS: Specimen[] = [
     correction_factor: 1.0,
     project_id: 'proj-demo-1',
     batch_id: 'b-demo-1',
-    project_name: 'Edificio Aurora — Pilotis L3',
+    project_name: 'Edificio Aurora · Pilotis L3',
     batch_code: 'L-016',
     fck_spec_mpa: 30,
     structure_name: null,

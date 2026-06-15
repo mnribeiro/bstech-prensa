@@ -4,6 +4,14 @@ import type { Specimen, Operator, LabEquipment, PressLiveState, PressReading } f
 
 export type Phase = 'idle' | 'loading' | 'ruptured' | 'sealed'
 
+// Modo demo: simula a prensa pra apresentar a BStech sem hardware conectado.
+// Só fica disponível pra estas contas (gate por email do login).
+export const DEMO_EMAILS = ['test2@gmail.com']
+export function isDemoEmail(email: string | null | undefined): boolean {
+  return !!email && DEMO_EMAILS.includes(email.toLowerCase())
+}
+export type DemoOutcome = 'approve' | 'reprove'
+
 export interface SessionState {
   // Cadastros carregados
   specimens: Specimen[]
@@ -22,6 +30,10 @@ export interface SessionState {
   modalOpen: boolean
   // Erros transitorios
   toast: string | null
+  // Modo demo (apresentacao sem hardware)
+  demoEmail: string | null
+  demoMode: boolean
+  demoOutcome: DemoOutcome
 }
 
 const initialState: SessionState = {
@@ -45,7 +57,10 @@ const initialState: SessionState = {
   readings: [],
   phase: 'idle',
   modalOpen: false,
-  toast: null
+  toast: null,
+  demoEmail: null,
+  demoMode: false,
+  demoOutcome: 'approve'
 }
 
 type Action =
@@ -64,6 +79,23 @@ type Action =
   | { type: 'close_modal' }
   | { type: 'specimen_sealed'; specimenId: string }
   | { type: 'toast'; message: string | null }
+  | { type: 'set_demo_mode'; on: boolean }
+  | { type: 'set_demo_outcome'; outcome: DemoOutcome }
+
+// Zera a medição da prensa (carga, pico, tempo, leituras) mantendo conexão/porta.
+// Usado ao trocar de CP, resetar ou selar pra não ficar resíduo do ensaio anterior.
+function clearedPress(p: PressLiveState): PressLiveState {
+  return {
+    ...p,
+    current_kgf: 0,
+    peak_kgf: 0,
+    peak_at_ms: null,
+    reading_count: 0,
+    session_started_at: null,
+    rupture_detected: false,
+    rupture_at: null
+  }
+}
 
 function reducer(state: SessionState, a: Action): SessionState {
   switch (a.type) {
@@ -78,7 +110,15 @@ function reducer(state: SessionState, a: Action): SessionState {
     case 'select_equipment':
       return { ...state, currentEquipmentId: a.id }
     case 'select_specimen':
-      return { ...state, selectedSpecimenId: a.id }
+      // Troca de CP limpa a medição da prensa pra não herdar o ensaio anterior
+      return {
+        ...state,
+        selectedSpecimenId: a.id,
+        readings: [],
+        phase: 'idle',
+        modalOpen: false,
+        press: clearedPress(state.press)
+      }
     case 'press_state':
       return { ...state, press: a.state }
     case 'press_reading':
@@ -88,7 +128,13 @@ function reducer(state: SessionState, a: Action): SessionState {
     case 'phase':
       return { ...state, phase: a.phase }
     case 'reset_session':
-      return { ...state, readings: [], phase: 'idle', modalOpen: false }
+      return {
+        ...state,
+        readings: [],
+        phase: 'idle',
+        modalOpen: false,
+        press: clearedPress(state.press)
+      }
     case 'open_modal':
       return { ...state, modalOpen: true }
     case 'close_modal':
@@ -100,10 +146,15 @@ function reducer(state: SessionState, a: Action): SessionState {
         selectedSpecimenId: null,
         readings: [],
         phase: 'idle',
-        modalOpen: false
+        modalOpen: false,
+        press: clearedPress(state.press)
       }
     case 'toast':
       return { ...state, toast: a.message }
+    case 'set_demo_mode':
+      return { ...state, demoMode: a.on }
+    case 'set_demo_outcome':
+      return { ...state, demoOutcome: a.outcome }
     default:
       return state
   }
@@ -111,8 +162,14 @@ function reducer(state: SessionState, a: Action): SessionState {
 
 const Ctx = createContext<{ state: SessionState; dispatch: Dispatch<Action> } | null>(null)
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState)
+export function SessionProvider({
+  children,
+  demoEmail = null
+}: {
+  children: ReactNode
+  demoEmail?: string | null
+}) {
+  const [state, dispatch] = useReducer(reducer, { ...initialState, demoEmail })
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>
 }
 
