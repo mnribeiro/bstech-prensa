@@ -2,6 +2,13 @@ import { useMemo, useState } from 'react'
 import { useSession } from '../store/session'
 import { relativeDays } from '../lib/format'
 import type { Specimen } from '@shared/types'
+import { FilterModal } from './FilterModal'
+import {
+  type QueueFilters,
+  emptyFilters,
+  matchesFilters,
+  countActiveFilters
+} from '../lib/specimen-filters'
 import {
   Building2,
   Layers,
@@ -10,6 +17,7 @@ import {
   Hammer,
   AlertTriangle,
   Search,
+  SlidersHorizontal,
   X
 } from 'lucide-react'
 
@@ -23,11 +31,16 @@ interface SidebarProps {
 export function Sidebar({ appMode, onModeChange }: SidebarProps) {
   const { state, dispatch } = useSession()
   const [query, setQuery] = useState('')
+  const [filters, setFilters] = useState<QueueFilters>(emptyFilters())
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  const activeFilters = countActiveFilters(filters)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return state.specimens
     return state.specimens.filter((s) => {
+      if (!matchesFilters(s, filters)) return false
+      if (!q) return true
       const haystack = [
         s.specimen_code,
         s.batch_code,
@@ -40,7 +53,7 @@ export function Sidebar({ appMode, onModeChange }: SidebarProps) {
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [state.specimens, query])
+  }, [state.specimens, query, filters])
 
   const grouped = useMemo(() => {
     const projects = new Map<string, Map<string, Specimen[]>>()
@@ -134,7 +147,72 @@ export function Sidebar({ appMode, onModeChange }: SidebarProps) {
             </button>
           )}
         </div>
+
+        <button
+          onClick={() => setFilterOpen(true)}
+          className={`mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border transition text-xs font-medium ${
+            activeFilters > 0
+              ? 'border-bs-accent/50 bg-bs-accent/[0.08] text-bs-text'
+              : 'bg-bs-panel border-bs-border text-bs-text-dim hover:border-bs-accent/50 hover:text-bs-text'
+          }`}
+        >
+          <SlidersHorizontal size={13} />
+          Filtros
+          {activeFilters > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-bs-accent text-white text-[10px] font-bold leading-none">
+              {activeFilters}
+            </span>
+          )}
+        </button>
       </div>
+
+      {activeFilters > 0 && (
+        <div className="px-3 py-2 border-b border-bs-border flex flex-wrap gap-1.5">
+          {filters.due !== 'all' && (
+            <FilterChip
+              label={DUE_LABELS[filters.due]}
+              onRemove={() => setFilters((f) => ({ ...f, due: 'all' }))}
+            />
+          )}
+          {(filters.dueFrom || filters.dueTo) && (
+            <FilterChip
+              label={`${filters.dueFrom || '…'} → ${filters.dueTo || '…'}`}
+              onRemove={() => setFilters((f) => ({ ...f, dueFrom: '', dueTo: '' }))}
+            />
+          )}
+          {filters.ages.map((a) => (
+            <FilterChip
+              key={`age-${a}`}
+              label={`${a}d`}
+              onRemove={() => setFilters((f) => ({ ...f, ages: f.ages.filter((x) => x !== a) }))}
+            />
+          ))}
+          {filters.projects.map((p) => (
+            <FilterChip
+              key={`proj-${p}`}
+              label={p}
+              onRemove={() =>
+                setFilters((f) => ({ ...f, projects: f.projects.filter((x) => x !== p) }))
+              }
+            />
+          ))}
+          {filters.structures.map((s) => (
+            <FilterChip
+              key={`struct-${s}`}
+              label={s}
+              onRemove={() =>
+                setFilters((f) => ({ ...f, structures: f.structures.filter((x) => x !== s) }))
+              }
+            />
+          ))}
+          <button
+            onClick={() => setFilters(emptyFilters())}
+            className="text-[11px] text-bs-text-mute hover:text-bs-text px-1.5"
+          >
+            limpar tudo
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
         {grouped.length === 0 && (
@@ -174,7 +252,36 @@ export function Sidebar({ appMode, onModeChange }: SidebarProps) {
           </div>
         ))}
       </div>
+
+      {filterOpen && (
+        <FilterModal
+          specimens={state.specimens}
+          initial={filters}
+          onApply={(f) => {
+            setFilters(f)
+            setFilterOpen(false)
+          }}
+          onClose={() => setFilterOpen(false)}
+        />
+      )}
     </aside>
+  )
+}
+
+const DUE_LABELS: Record<string, string> = {
+  late: 'Atrasados',
+  today: 'Vence hoje',
+  '7d': 'Próx. 7 dias'
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-bs-accent/15 text-bs-accent text-[11px] font-medium max-w-[150px]">
+      <span className="truncate">{label}</span>
+      <button onClick={onRemove} className="hover:text-white shrink-0">
+        ×
+      </button>
+    </span>
   )
 }
 
