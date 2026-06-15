@@ -11,6 +11,7 @@ export const IPC = {
   PRESS_START_SESSION: 'press:start-session',
   PRESS_STOP_SESSION: 'press:stop-session',
   PRESS_RESET: 'press:reset',
+  PRESS_GET_STATE: 'press:get-state', // snapshot sob demanda do estado real
   // Eventos broadcast (main -> renderer)
   PRESS_READING: 'press:reading', // PressReading individual
   PRESS_STATE: 'press:state', // PressLiveState snapshot
@@ -49,6 +50,7 @@ export interface ElectronAPI {
     startSession: () => Promise<{ ok: boolean; error?: string }>
     stopSession: () => Promise<void>
     reset: () => Promise<void>
+    getState: () => Promise<import('./types').PressLiveState | null>
     onReading: (cb: (r: import('./types').PressReading) => void) => () => void
     onState: (cb: (s: import('./types').PressLiveState) => void) => () => void
     onRupture: (cb: () => void) => () => void

@@ -80,6 +80,7 @@ function registerIpc() {
   ipcMain.handle(IPC.PRESS_START_SESSION, async () => press?.startSession() ?? { ok: false })
   ipcMain.handle(IPC.PRESS_STOP_SESSION, async () => press?.stopSession())
   ipcMain.handle(IPC.PRESS_RESET, async () => press?.reset())
+  ipcMain.handle(IPC.PRESS_GET_STATE, async () => press?.getLiveState() ?? null)
 
   ipcMain.handle(IPC.APP_GET_CONFIG, async () => {
     const c = await loadConfig()

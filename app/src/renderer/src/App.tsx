@@ -117,23 +117,43 @@ function Inner() {
     dispatch
   ])
 
-  // Marca a prensa como "conectada (demo)" pra UI nao mostrar desconectada.
+  // Liga o demo: marca a prensa como "conectada (demo)" pra UI nao mostrar
+  // desconectada. Desliga: para a simulacao e restaura o estado REAL do driver
+  // (senao a UI fica presa em "conectada DEMO").
   useEffect(() => {
-    if (!state.demoMode) return
-    dispatch({
-      type: 'press_state',
-      state: {
-        connected: true,
-        port: 'DEMO',
-        current_kgf: 0,
-        peak_kgf: 0,
-        peak_at_ms: null,
-        reading_count: 0,
-        session_started_at: null,
-        rupture_detected: false,
-        rupture_at: null
+    if (state.demoMode) {
+      dispatch({
+        type: 'press_state',
+        state: {
+          connected: true,
+          port: 'DEMO',
+          current_kgf: 0,
+          peak_kgf: 0,
+          peak_at_ms: null,
+          reading_count: 0,
+          session_started_at: null,
+          rupture_detected: false,
+          rupture_at: null
+        }
+      })
+      return
+    }
+    // Demo desligado: encerra qualquer simulacao em curso, limpa a sessao e
+    // volta pro estado real da prensa (conectada ou nao).
+    demoHandleRef.current?.stop()
+    dispatch({ type: 'reset_session' })
+    let cancelled = false
+    ;(async () => {
+      try {
+        const real = await window.bstech.press.getState()
+        if (!cancelled && real) dispatch({ type: 'press_state', state: real })
+      } catch (err) {
+        console.error('[demo off] getState', err)
       }
-    })
+    })()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.demoMode, dispatch])
 
