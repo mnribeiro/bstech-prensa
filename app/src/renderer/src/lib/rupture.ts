@@ -51,18 +51,32 @@ export function verdictOf(mpa: number, sp: Specimen): Verdict {
   return mpa >= sp.fck_spec_mpa ? 'pass' : 'fail'
 }
 
-export const RUPTURE_TYPES: { value: RuptureType; letter: string; label: string; path: string; bstech: string }[] = [
-  { value: 'conica', letter: 'A', label: 'Cônica', path: 'M8 12 L13 5 L18 12', bstech: 'cone' },
-  { value: 'conica_cisalhada', letter: 'C', label: 'Cônica e cis.', path: 'M8 12 L13 5 L18 12 M8 24 L18 16', bstech: 'cone_and_shear' },
-  { value: 'cisalhada', letter: 'D', label: 'Cisalhamento', path: 'M7 27 L19 7', bstech: 'shear' },
-  { value: 'conica_bipartida', letter: 'E', label: 'Fendida', path: 'M13 4 L13 30', bstech: 'split' },
-  { value: 'colunar', letter: 'F', label: 'Colunar', path: 'M10 4 L10 30 M16 4 L16 30', bstech: 'columnar' },
-  { value: 'lateral', letter: '', label: 'Irregular', path: 'M8 7 L15 14 L9 20 L16 27', bstech: 'irregular' }
+// Mesma lista, letras, nomes e desenhos da BSTECH web (ficha de ruptura)
+export const RUPTURE_TYPES: { value: RuptureType; letter: string; label: string; short: string; path: string }[] = [
+  { value: 'cone', letter: 'A', label: 'Cônica', short: 'Cônica', path: 'M8 12 L13 5 L18 12' },
+  { value: 'split', letter: 'B', label: 'Cônica e bipartida', short: 'Cônica/bip.', path: 'M8 12 L13 5 L18 12 M13 5 L13 30' },
+  { value: 'columnar', letter: 'C', label: 'Colunar', short: 'Colunar', path: 'M10 4 L10 30 M16 4 L16 30' },
+  { value: 'cone_and_shear', letter: 'D', label: 'Cônica e cisalhada', short: 'Cônica/cis.', path: 'M8 12 L13 5 L18 12 M8 24 L18 16' },
+  { value: 'shear', letter: 'E', label: 'Cisalhada', short: 'Cisalhada', path: 'M7 27 L19 7' },
+  {
+    value: 'top_bottom_fracture',
+    letter: 'F',
+    label: 'Fraturas no topo e/ou na base',
+    short: 'Topo/base',
+    path: 'M8 9 L13 6 L18 9 M8 25 L13 28 L18 25'
+  },
+  {
+    value: 'top_fracture',
+    letter: 'G',
+    label: 'Fraturas próximas ao topo',
+    short: 'Junto ao topo',
+    path: 'M8 8 L13 6 L18 9 M9 13 L14 11 L18 13'
+  }
 ]
 
-/** Tipo gravado na BSTECH (em ingles) de volta pro valor da tela */
+/** Tipo gravado na BSTECH (ja no mesmo codigo da tela) */
 export function ruptureTypeFromBstech(code: string | null): RuptureType | null {
-  return RUPTURE_TYPES.find((t) => t.bstech === code || t.value === code)?.value ?? null
+  return RUPTURE_TYPES.find((t) => t.value === code)?.value ?? null
 }
 
 export function fmt(n: number, digits = 1): string {

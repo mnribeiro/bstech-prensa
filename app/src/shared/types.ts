@@ -7,22 +7,16 @@ export type SpecimenStatus =
   | 'RUPTURED_APPROVED'
   | 'RUPTURED_REPROVED'
 
+// Tipos de ruptura da NBR 5739, com os mesmos codigos e letras da BSTECH web
+// (specimens.rupture_type, check ck_rupture_type)
 export type RuptureType =
-  | 'conica'
-  | 'conica_bipartida'
-  | 'colunar'
-  | 'cisalhada'
-  | 'conica_cisalhada'
-  | 'lateral'
-
-export const RUPTURE_TYPE_LABELS: Record<RuptureType, string> = {
-  conica: 'Conica',
-  conica_bipartida: 'Conica e bipartida',
-  colunar: 'Colunar',
-  cisalhada: 'Cisalhada',
-  conica_cisalhada: 'Conica e cisalhada',
-  lateral: 'Lateral'
-}
+  | 'cone'
+  | 'split'
+  | 'columnar'
+  | 'cone_and_shear'
+  | 'shear'
+  | 'top_bottom_fracture'
+  | 'top_fracture'
 
 // Specimen vindo do BStech (subset relevante pro app de prensa)
 export interface Specimen {

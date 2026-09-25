@@ -19,7 +19,7 @@ import {
 import { errorMessage } from './lib/error-message'
 import { runDemoSimulation, type DemoHandle } from './lib/demo-runner'
 import { displayOrder, isDone, lotOf, nextPending, splitPools } from './lib/queue'
-import { RUPTURE_TYPES, correctedMpa, peakPoint, fmt } from './lib/rupture'
+import { correctedMpa, peakPoint, fmt } from './lib/rupture'
 import { calcFckMpa, correctionFactor } from './lib/format'
 import type { LabEquipment, PressLiveState, SealRupturePayload, Specimen } from '@shared/types'
 
@@ -251,7 +251,7 @@ function Inner() {
         applied_load_ton: pk.kgf / 1000,
         calculated_fck_mpa: calc,
         corrected_fck_mpa: correctionFactor(h, d) * calc,
-        rupture_type: RUPTURE_TYPES.find((t) => t.value === state.ruptureType)?.bstech ?? null,
+        rupture_type: state.ruptureType,
         ruptured_at: res.sealed_at ?? new Date().toISOString(),
         rupture_operator_name: state.operator.name
       }

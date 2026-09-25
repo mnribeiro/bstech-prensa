@@ -160,26 +160,14 @@ export async function fetchSealedCurve(specimenId: string): Promise<PressReading
   return Array.isArray(r) ? (r as PressReading[]) : null
 }
 
-// BStech specimens.rupture_type usa nomenclatura NBR em inglês (check constraint ck_rupture_type).
-// O app trabalha em PT pra UI, traduzimos no envio.
-const RUPTURE_TYPE_TO_BSTECH: Record<string, string> = {
-  conica: 'cone',
-  conica_bipartida: 'split',
-  colunar: 'columnar',
-  cisalhada: 'shear',
-  conica_cisalhada: 'cone_and_shear',
-  lateral: 'irregular'
-}
-
 export async function sealRupture(payload: SealRupturePayload): Promise<SealRuptureResponse> {
   const sb = await getClient()
-  const ruptureTypeBstech = RUPTURE_TYPE_TO_BSTECH[payload.rupture_type] ?? payload.rupture_type
   const { data, error } = await sb.rpc('seal_rupture', {
     p_specimen_id: payload.specimen_id,
     p_equipment_id: payload.equipment_id,
     p_operator_id: payload.operator_id,
     p_peak_load_kgf: payload.peak_load_kgf,
-    p_rupture_type: ruptureTypeBstech,
+    p_rupture_type: payload.rupture_type,
     p_observations: payload.observations ?? null,
     p_photo_path: payload.photo_path ?? null,
     p_readings: payload.readings,

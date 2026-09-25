@@ -321,7 +321,7 @@ function ResultBlock({ onSeal }: { onSeal: () => void }) {
       </div>
 
       <div className="lbl mt-1.5">Tipo de ruptura</div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-4 gap-1.5">
         {RUPTURE_TYPES.map((t) => {
           const on = type === t.value
           return (
@@ -329,7 +329,8 @@ function ResultBlock({ onSeal }: { onSeal: () => void }) {
               key={t.value}
               disabled={sealed}
               onClick={() => dispatch({ type: 'set_rupture_type', value: t.value })}
-              className={`h-[62px] rounded-[9px] flex flex-col items-center justify-center gap-[3px] text-[11.5px] transition ${
+              title={`${t.letter} · ${t.label}`}
+              className={`h-[74px] rounded-[9px] flex flex-col items-center justify-center gap-[2px] px-1 transition ${
                 on ? 'bg-bs-accent text-white' : 'bg-bs-panel-soft text-bs-text-dim hover:bg-bs-card3 hover:text-bs-text'
               } ${sealed ? 'cursor-default' : ''}`}
             >
@@ -337,7 +338,8 @@ function ResultBlock({ onSeal }: { onSeal: () => void }) {
                 <rect x="4" y="3" width="18" height="28" rx="2" fill="none" stroke="currentColor" strokeWidth={1.4} opacity={0.6} />
                 <path d={t.path} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
               </svg>
-              <span>{t.letter ? `${t.letter} · ${t.label}` : t.label}</span>
+              <b className="text-[13px] font-bold leading-none">{t.letter}</b>
+              <span className="text-[10.5px] leading-tight text-center">{t.short}</span>
             </button>
           )
         })}
