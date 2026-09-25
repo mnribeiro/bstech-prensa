@@ -8,11 +8,33 @@ import { useAppVersion } from '../hooks/useAppVersion'
 import prensaImg from '../assets/prensa-login.jpg'
 import type { LabEquipment } from '@shared/types'
 
+type BlockReason = 'sem_ruptura' | 'sem_operador' | 'lista_vazia' | 'perfil'
+
+const ONDE = 'Cadastros > Operadores, na BSTECH web'
+const BLOCK_TEXT: Record<BlockReason, { title: string; body: string }> = {
+  sem_ruptura: {
+    title: 'Seu login está ligado a um operador sem a função ruptura.',
+    body: `O laboratório marca a função ruptura em ${ONDE}.`
+  },
+  sem_operador: {
+    title: 'Seu login ainda não está ligado a um operador.',
+    body: `O laboratório liga o seu login ao operador em ${ONDE}.`
+  },
+  lista_vazia: {
+    title: 'O laboratório ainda não tem operador de ruptura.',
+    body: `Cadastre os operadores com a função ruptura em ${ONDE}.`
+  },
+  perfil: {
+    title: 'Esse perfil não rompe CP na prensa.',
+    body: 'Entre com o login do laboratório ou de um operador de ruptura.'
+  }
+}
+
 const REMEMBER_KEY = 'bstech-prensa-email'
 
 interface Props {
-  /** Resolve o operador do login; devolve false quando o acesso nao tem operador ligado */
-  onLogged: () => Promise<boolean>
+  /** Resolve o acesso do login; devolve o motivo quando esse login nao pode romper */
+  onLogged: () => Promise<BlockReason | null>
   equipment: LabEquipment | null
   pressConnected: boolean
   liveKgf: number
@@ -37,7 +59,7 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [noOperator, setNoOperator] = useState(false)
+  const [blocked, setBlocked] = useState<BlockReason | null>(null)
   const version = useAppVersion()
 
   useEffect(() => {
@@ -53,14 +75,14 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setNoOperator(false)
+    setBlocked(null)
     try {
       const sb = await getClient()
       const { error } = await sb.auth.signInWithPassword({ email, password })
       if (error) throw error
-      const ok = await onLogged()
-      if (!ok) {
-        setNoOperator(true)
+      const reason = await onLogged()
+      if (reason) {
+        setBlocked(reason)
         await sb.auth.signOut()
       }
     } catch (err) {
@@ -72,12 +94,15 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
 
   return (
     <div className="h-full grid grid-cols-[1.45fr_1fr] bg-bs-bg">
-      {/* Lado da imagem: fica escuro nos dois temas */}
+      {/* Lado da imagem: fica escuro nos dois temas. Foto com margem, centrada
+          na altura como o bloco de login do lado direito */}
       <div className="relative overflow-hidden bg-[#0a0a0a] text-[#ececec]">
-        <div className="absolute inset-x-0 top-0 aspect-[1619/972] bg-cover bg-center" style={{ backgroundImage: `url(${prensaImg})` }} />
-        <div className="absolute inset-x-0 top-0 aspect-[1619/972] bg-gradient-to-b from-transparent from-[62%] to-[#0a0a0a]" />
-        <div className="relative z-10 h-full flex flex-col px-14 pt-10 pb-9">
-          <h1 className="mt-auto mb-3 text-[38px] leading-[1.08] tracking-[-0.02em] font-bold max-w-[620px]">Da prensa direto pro laudo.</h1>
+        <div className="relative z-10 h-full flex flex-col justify-center px-14 py-12">
+          <div
+            className="aspect-[1619/972] rounded-2xl bg-cover bg-center ring-1 ring-white/[0.06] mb-9"
+            style={{ backgroundImage: `url(${prensaImg})`, width: 'min(100%, calc((100vh - 470px) * 1619 / 972))' }}
+          />
+          <h1 className="mb-3 text-[38px] leading-[1.08] tracking-[-0.02em] font-bold max-w-[620px]">Da prensa direto pro laudo.</h1>
           <p className="text-[#c9c9c9] text-base max-w-[560px] mb-[22px]">
             A carga sai do indicador, a curva do ensaio fica gravada e o resultado é selado na BSTECH. Ninguém digita número,
             ninguém procura CP.
@@ -107,7 +132,7 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
             </div>
             <div className="font-mono text-xl tabular-nums">{(liveKgf / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tf</div>
           </div>
-          <div className="text-[#6a6a6a] text-xs mt-3.5">Versão {version ?? '...'}</div>
+          <div className="absolute left-14 bottom-6 text-[#6a6a6a] text-xs">Versão {version ?? '...'}</div>
         </div>
       </div>
 
@@ -120,7 +145,7 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
           <img src={theme === 'light' ? logo : logoEscura} alt="BSTECH" className="h-[30px] w-auto justify-self-start mb-3.5" />
           <div>
             <h2 className="text-[28px] font-bold tracking-[-0.01em] m-0 mb-1">Entrar</h2>
-            <div className="text-bs-text-dim">Cada operador entra com o próprio acesso da BSTECH.</div>
+            <div className="text-bs-text-dim">Use o mesmo acesso da BSTECH web.</div>
           </div>
           <label className="grid gap-[7px]">
             <span className="text-[13px] text-bs-text-dim">E-mail</span>
@@ -152,11 +177,10 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
             Lembrar o e-mail neste computador
           </button>
 
-          {noOperator && (
+          {blocked && (
             <div className="rounded-[10px] px-[15px] py-[13px] text-[13.5px] leading-normal bg-bs-warning/15 text-bs-warning-text">
-              <b className="block mb-0.5">Seu acesso ainda não está ligado a um operador de ruptura.</b>
-              Peça pro responsável do laboratório ligar seu usuário no cadastro de operadores da BSTECH. Sem isso a ruptura sairia sem o
-              nome de quem rompeu.
+              <b className="block mb-0.5">{BLOCK_TEXT[blocked].title}</b>
+              {BLOCK_TEXT[blocked].body}
             </div>
           )}
           {error && <div className="rounded-[10px] px-[15px] py-3 text-[13px] bg-bs-danger/15 text-bs-danger">{error}</div>}

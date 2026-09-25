@@ -147,31 +147,48 @@ function pickStructure(
 
 // Operador de ruptura ligado ao login (operators.user_id). Cada operador entra
 // com o proprio acesso; sem esse vinculo a ruptura sairia sem o nome de quem rompeu.
-export async function fetchMyOperator(userId: string): Promise<Operator | null> {
-  const sb = await getClient()
-  const { data, error } = await sb
-    .from('operators')
-    .select('id, name, role, client_id, can_mold, can_rupture')
-    .eq('user_id', userId)
-    .eq('can_rupture', true)
-    .limit(1)
-  if (error) throw error
-  return data?.[0] ?? null
-}
+// Quem pode romper nesta sessao, pelo perfil do login:
+// - login de operador (perfil laboratorio): so ele mesmo, se tiver a funcao ruptura
+// - dono, engenheiro e gestor: escolhem entre os operadores de ruptura do laboratorio
+// O laboratorio liga login e funcao em Cadastros > Operadores na BSTECH web.
+export type Access =
+  | { kind: 'operator'; operator: Operator }
+  | { kind: 'chooser'; operators: Operator[]; own: Operator | null }
+  | { kind: 'blocked'; reason: 'sem_ruptura' | 'sem_operador' | 'lista_vazia' | 'perfil' }
 
-// So pro modo demo (conta de apresentacao sem operador ligado)
-export async function fetchFirstRuptureOperator(): Promise<Operator | null> {
+const CHOOSER_ROLES = ['client', 'engineer', 'unit_manager', 'admin']
+const OPERATOR_COLS = 'id, name, role, client_id, can_mold, can_rupture, active'
+
+export async function resolveAccess(userId: string): Promise<Access> {
   const sb = await getClient()
-  const clientId = await getClientId()
-  const { data, error } = await sb
-    .from('operators')
-    .select('id, name, role, client_id, can_mold, can_rupture')
-    .eq('can_rupture', true)
-    .eq('client_id', clientId)
-    .order('name')
-    .limit(1)
-  if (error) throw error
-  return data?.[0] ?? null
+  const [{ data: profile, error: pErr }, { data: mine, error: oErr }] = await Promise.all([
+    sb.from('user_profiles').select('user_role, role, client_id').eq('id', userId).maybeSingle(),
+    sb.from('operators').select(OPERATOR_COLS).eq('user_id', userId).limit(1)
+  ])
+  if (pErr) throw pErr
+  if (oErr) throw oErr
+  const own = (mine?.[0] as (Operator & { active: boolean | null }) | undefined) ?? null
+  const ownActive = !!own && own.active !== false
+  const role = profile?.user_role ?? profile?.role ?? null
+
+  if (role && CHOOSER_ROLES.includes(role) && profile?.client_id) {
+    const { data, error } = await sb
+      .from('operators')
+      .select(OPERATOR_COLS)
+      .eq('client_id', profile.client_id)
+      .eq('can_rupture', true)
+      .order('name')
+    if (error) throw error
+    const operators = (data ?? []).filter((o) => o.active !== false) as Operator[]
+    if (!operators.length) return { kind: 'blocked', reason: 'lista_vazia' }
+    const ownRupture = own && ownActive && own.can_rupture ? operators.find((o) => o.id === own.id) ?? null : null
+    return { kind: 'chooser', operators, own: ownRupture }
+  }
+  if (own && ownActive) {
+    return own.can_rupture ? { kind: 'operator', operator: own } : { kind: 'blocked', reason: 'sem_ruptura' }
+  }
+  if (role === 'laboratory') return { kind: 'blocked', reason: 'sem_operador' }
+  return { kind: 'blocked', reason: 'perfil' }
 }
 
 export async function fetchPressEquipment(): Promise<LabEquipment[]> {

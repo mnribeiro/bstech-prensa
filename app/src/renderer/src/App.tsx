@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SessionProvider, useSession, isDemoEmail } from './store/session'
+import { SessionProvider, useSession, type SessionAccess } from './store/session'
 import { TopBar } from './components/TopBar'
 import { Queue, QueueRail } from './components/Queue'
 import { BenchCenter, BenchSide } from './components/Bench'
@@ -11,8 +11,8 @@ import {
   fetchQueue,
   fetchUpcomingCounts,
   fetchPressEquipment,
-  fetchMyOperator,
-  fetchFirstRuptureOperator,
+  resolveAccess,
+  type Access,
   fetchSealedCurve,
   sealRupture,
   localIsoDate
@@ -22,7 +22,7 @@ import { runDemoSimulation, type DemoHandle } from './lib/demo-runner'
 import { displayOrder, isDone, lotOf, nextPending, splitPools } from './lib/queue'
 import { RUPTURE_TYPES, correctedMpa, peakPoint, fmt } from './lib/rupture'
 import { calcFckMpa, correctionFactor } from './lib/format'
-import type { LabEquipment, Operator, PressLiveState, SealRupturePayload, Specimen } from '@shared/types'
+import type { LabEquipment, PressLiveState, SealRupturePayload, Specimen } from '@shared/types'
 
 // Prensa do computador guardada tambem aqui, pra entrada mostrar o nome antes do login
 const EQUIPMENT_KEY = 'bstech-prensa-equipamento'
@@ -190,7 +190,9 @@ function Inner() {
       ? 'Escolha a prensa deste computador no topo'
       : !state.press.connected
         ? 'Prensa não conectada'
-        : null
+        : !state.operator
+          ? 'Escolha no topo quem vai romper'
+          : null
 
   const handleStart = useCallback(async () => {
     if (!sp || isDone(sp) || startBlocker || state.phase !== 'idle') return
@@ -348,18 +350,18 @@ function Inner() {
   )
 }
 
-type Auth = { phase: 'loading' } | { phase: 'out' } | { phase: 'in'; email: string | null; operator: Operator }
+type BlockReason = Extract<Access, { kind: 'blocked' }>['reason']
+type Auth = { phase: 'loading' } | { phase: 'out' } | { phase: 'in'; email: string | null; access: SessionAccess }
 
-// Operador do login. Conta de demo sem operador ligado usa o primeiro operador
-// de ruptura do cliente, so pra apresentacao.
-async function resolveOperator(): Promise<{ email: string | null; operator: Operator } | null> {
+// Acesso do login atual. Devolve o motivo quando esse login nao pode romper.
+async function resolveLogin(): Promise<{ email: string | null; access: SessionAccess } | BlockReason> {
   const sb = await getClient()
   const { data } = await sb.auth.getUser()
   const user = data.user
-  if (!user) return null
-  let operator = await fetchMyOperator(user.id)
-  if (!operator && isDemoEmail(user.email)) operator = await fetchFirstRuptureOperator()
-  return operator ? { email: user.email ?? null, operator } : null
+  if (!user) return 'perfil'
+  const access = await resolveAccess(user.id)
+  if (access.kind === 'blocked') return access.reason
+  return { email: user.email ?? null, access }
 }
 
 function AuthGate() {
@@ -394,9 +396,9 @@ function AuthGate() {
         const sb = await getClient()
         const { data } = await sb.auth.getSession()
         if (data.session) {
-          const r = await resolveOperator()
+          const r = await resolveLogin()
           if (!mounted) return
-          if (r) setAuth({ phase: 'in', ...r })
+          if (typeof r !== 'string') setAuth({ phase: 'in', ...r })
           else {
             await sb.auth.signOut()
             setAuth({ phase: 'out' })
@@ -416,11 +418,11 @@ function AuthGate() {
     }
   }, [])
 
-  const onLogged = useCallback(async () => {
-    const r = await resolveOperator()
-    if (!r) return false
+  const onLogged = useCallback(async (): Promise<BlockReason | null> => {
+    const r = await resolveLogin()
+    if (typeof r === 'string') return r
     setAuth({ phase: 'in', ...r })
-    return true
+    return null
   }, [])
 
   if (auth.phase === 'loading') {
@@ -437,7 +439,7 @@ function AuthGate() {
     )
   }
   return (
-    <SessionProvider demoEmail={auth.email} operator={auth.operator}>
+    <SessionProvider demoEmail={auth.email} access={auth.access}>
       <Inner />
     </SessionProvider>
   )

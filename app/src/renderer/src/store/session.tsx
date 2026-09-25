@@ -27,8 +27,11 @@ export interface SealedToast {
 }
 
 export interface SessionState {
-  // Quem esta na prensa (vem do login) e a prensa deste computador (vem da config)
+  // Quem esta rompendo: travado no login de operador; dono/engenheiro escolhe na lista
   operator: Operator | null
+  operators: Operator[]
+  operatorLocked: boolean
+  // Prensa deste computador (vem da config)
   equipments: LabEquipment[]
   equipmentId: string | null
   // Fila do dia
@@ -71,6 +74,8 @@ const emptyPress: PressLiveState = {
 
 const initialState: SessionState = {
   operator: null,
+  operators: [],
+  operatorLocked: true,
   equipments: [],
   equipmentId: null,
   specimens: [],
@@ -137,6 +142,8 @@ const cleanBench = (state: SessionState) => ({
 function reducer(state: SessionState, a: Action): SessionState {
   switch (a.type) {
     case 'set_operator':
+      if (state.operatorLocked) return state
+      rememberOperator(a.operator)
       return { ...state, operator: a.operator }
     case 'set_equipments':
       return { ...state, equipments: a.equipments }
@@ -197,16 +204,43 @@ function reducer(state: SessionState, a: Action): SessionState {
 
 const Ctx = createContext<{ state: SessionState; dispatch: Dispatch<Action> } | null>(null)
 
+// Ultimo operador escolhido neste computador (so pra quem escolhe na lista)
+const OPERATOR_KEY = 'bstech-prensa-operador'
+function rememberOperator(op: Operator | null) {
+  try {
+    if (op) localStorage.setItem(OPERATOR_KEY, op.id)
+  } catch {
+    // sem storage so nao lembra a escolha
+  }
+}
+function rememberedOperatorId(): string | null {
+  try {
+    return localStorage.getItem(OPERATOR_KEY)
+  } catch {
+    return null
+  }
+}
+
+function initialOperator(access: SessionAccess): Pick<SessionState, 'operator' | 'operators' | 'operatorLocked'> {
+  if (access.kind === 'operator') return { operator: access.operator, operators: [access.operator], operatorLocked: true }
+  const ops = access.operators
+  const remembered = ops.find((o) => o.id === rememberedOperatorId()) ?? null
+  const operator = remembered ?? access.own ?? (ops.length === 1 ? ops[0] : null)
+  return { operator, operators: ops, operatorLocked: false }
+}
+
+export type SessionAccess = { kind: 'operator'; operator: Operator } | { kind: 'chooser'; operators: Operator[]; own: Operator | null }
+
 export function SessionProvider({
   children,
   demoEmail = null,
-  operator = null
+  access
 }: {
   children: ReactNode
   demoEmail?: string | null
-  operator?: Operator | null
+  access: SessionAccess
 }) {
-  const [state, dispatch] = useReducer(reducer, { ...initialState, demoEmail, operator })
+  const [state, dispatch] = useReducer(reducer, { ...initialState, demoEmail, ...initialOperator(access) })
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>
 }
 
