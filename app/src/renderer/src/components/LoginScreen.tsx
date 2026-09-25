@@ -94,14 +94,13 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
 
   return (
     <div className="h-full grid grid-cols-[1.45fr_1fr] bg-bs-bg">
-      {/* Lado da imagem: fica escuro nos dois temas. Foto com margem, centrada
-          na altura como o bloco de login do lado direito */}
+      {/* Lado da imagem: foto da prensa como fundo da coluna inteira, texto por cima
+          no degrade de baixo. Fica escuro nos dois temas */}
       <div className="relative overflow-hidden bg-[#0a0a0a] text-[#ececec]">
-        <div className="relative z-10 h-full flex flex-col justify-center px-14 py-12">
-          <div
-            className="aspect-[1619/972] rounded-2xl bg-cover bg-center ring-1 ring-white/[0.06] mb-9"
-            style={{ backgroundImage: `url(${prensaImg})`, width: 'min(100%, calc((100vh - 470px) * 1619 / 972))' }}
-          />
+        <div className="absolute inset-0 bg-cover bg-[position:42%_center]" style={{ backgroundImage: `url(${prensaImg})` }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] from-[18%] via-[#0a0a0a]/70 via-[42%] to-transparent to-[70%]" />
+        <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-[#0a0a0a] to-transparent" />
+        <div className="relative z-10 h-full flex flex-col justify-end px-14 pt-12 pb-16">
           <h1 className="mb-3 text-[38px] leading-[1.08] tracking-[-0.02em] font-bold max-w-[620px]">Da prensa direto pro laudo.</h1>
           <p className="text-[#c9c9c9] text-base max-w-[560px] mb-[22px]">
             A carga sai do indicador, a curva do ensaio fica gravada e o resultado é selado na BSTECH. Ninguém digita número,
