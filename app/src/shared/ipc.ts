@@ -56,10 +56,8 @@ export interface ElectronAPI {
     onRupture: (cb: () => void) => () => void
   }
   app: {
-    getConfig: () => Promise<{ supabase_url: string; supabase_anon_key: string; client_id: string }>
-    setConfig: (
-      cfg: Partial<{ supabase_url: string; supabase_anon_key: string; client_id: string }>
-    ) => Promise<void>
+    getConfig: () => Promise<import('./types').AppConfig>
+    setConfig: (cfg: Partial<import('./types').AppConfig>) => Promise<void>
   }
   calibration: {
     capture: (

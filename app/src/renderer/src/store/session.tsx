@@ -1,8 +1,16 @@
 // Store leve com useReducer + Context. Suficiente pra esse app sem trazer zustand.
 import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from 'react'
-import type { Specimen, Operator, LabEquipment, PressLiveState, PressReading } from '@shared/types'
+import type {
+  Specimen,
+  Operator,
+  LabEquipment,
+  PressLiveState,
+  PressReading,
+  RuptureType
+} from '@shared/types'
+import type { QueueTab } from '../lib/queue'
 
-export type Phase = 'idle' | 'loading' | 'ruptured' | 'sealed'
+export type Phase = 'idle' | 'loading' | 'ruptured'
 
 // Modo demo: simula a prensa pra apresentar a BStech sem hardware conectado.
 // Só fica disponível pra estas contas (gate por email do login).
@@ -12,23 +20,36 @@ export function isDemoEmail(email: string | null | undefined): boolean {
 }
 export type DemoOutcome = 'approve' | 'reprove'
 
+export interface SealedToast {
+  code: string
+  mpa: number
+  hash: string
+}
+
 export interface SessionState {
-  // Cadastros carregados
-  specimens: Specimen[]
-  operators: Operator[]
+  // Quem esta na prensa (vem do login) e a prensa deste computador (vem da config)
+  operator: Operator | null
   equipments: LabEquipment[]
-  // Selecao do operador (escolhe no inicio do turno)
-  currentOperatorId: string | null
-  currentEquipmentId: string | null
-  // Specimen ativo no centro do palco
+  equipmentId: string | null
+  // Fila do dia
+  specimens: Specimen[]
+  upcoming: { date: string; count: number }[]
+  queueLoaded: boolean
+  tab: QueueTab
+  query: string
+  queueCollapsed: boolean
+  // CP na bancada
   selectedSpecimenId: string | null
-  // Estado da prensa
   press: PressLiveState
   readings: PressReading[]
   phase: Phase
-  // Modal pos-ruptura
-  modalOpen: boolean
-  // Erros transitorios
+  ruptureType: RuptureType | null
+  sealing: boolean
+  sealError: string | null
+  // Curvas dos CPs ja rompidos (desenho tracejado do outro exemplar)
+  curves: Record<string, PressReading[]>
+  // Avisos
+  sealedToast: SealedToast | null
   toast: string | null
   // Modo demo (apresentacao sem hardware)
   demoEmail: string | null
@@ -36,27 +57,37 @@ export interface SessionState {
   demoOutcome: DemoOutcome
 }
 
+const emptyPress: PressLiveState = {
+  connected: false,
+  port: null,
+  current_kgf: 0,
+  peak_kgf: 0,
+  peak_at_ms: null,
+  reading_count: 0,
+  session_started_at: null,
+  rupture_detected: false,
+  rupture_at: null
+}
+
 const initialState: SessionState = {
-  specimens: [],
-  operators: [],
+  operator: null,
   equipments: [],
-  currentOperatorId: null,
-  currentEquipmentId: null,
+  equipmentId: null,
+  specimens: [],
+  upcoming: [],
+  queueLoaded: false,
+  tab: 'hoje',
+  query: '',
+  queueCollapsed: false,
   selectedSpecimenId: null,
-  press: {
-    connected: false,
-    port: null,
-    current_kgf: 0,
-    peak_kgf: 0,
-    peak_at_ms: null,
-    reading_count: 0,
-    session_started_at: null,
-    rupture_detected: false,
-    rupture_at: null
-  },
+  press: emptyPress,
   readings: [],
   phase: 'idle',
-  modalOpen: false,
+  ruptureType: null,
+  sealing: false,
+  sealError: null,
+  curves: {},
+  sealedToast: null,
   toast: null,
   demoEmail: null,
   demoMode: false,
@@ -64,20 +95,26 @@ const initialState: SessionState = {
 }
 
 type Action =
-  | { type: 'set_specimens'; specimens: Specimen[] }
-  | { type: 'set_operators'; operators: Operator[] }
+  | { type: 'set_operator'; operator: Operator | null }
   | { type: 'set_equipments'; equipments: LabEquipment[] }
-  | { type: 'select_operator'; id: string | null }
-  | { type: 'select_equipment'; id: string | null }
+  | { type: 'set_equipment'; id: string | null }
+  | { type: 'set_queue'; specimens: Specimen[] }
+  | { type: 'set_upcoming'; upcoming: { date: string; count: number }[] }
+  | { type: 'set_tab'; tab: QueueTab }
+  | { type: 'set_query'; query: string }
+  | { type: 'set_queue_collapsed'; on: boolean }
   | { type: 'select_specimen'; id: string | null }
   | { type: 'press_state'; state: PressLiveState }
   | { type: 'press_reading'; reading: PressReading }
   | { type: 'press_rupture' }
   | { type: 'phase'; phase: Phase }
   | { type: 'reset_session' }
-  | { type: 'open_modal' }
-  | { type: 'close_modal' }
-  | { type: 'specimen_sealed'; specimenId: string }
+  | { type: 'set_rupture_type'; value: RuptureType }
+  | { type: 'seal_start' }
+  | { type: 'seal_error'; message: string }
+  | { type: 'sealed'; specimen: Specimen; curve: PressReading[]; toast: SealedToast; nextId: string | null }
+  | { type: 'set_curve'; specimenId: string; curve: PressReading[] }
+  | { type: 'clear_sealed_toast' }
   | { type: 'toast'; message: string | null }
   | { type: 'set_demo_mode'; on: boolean }
   | { type: 'set_demo_outcome'; outcome: DemoOutcome }
@@ -85,40 +122,39 @@ type Action =
 // Zera a medição da prensa (carga, pico, tempo, leituras) mantendo conexão/porta.
 // Usado ao trocar de CP, resetar ou selar pra não ficar resíduo do ensaio anterior.
 function clearedPress(p: PressLiveState): PressLiveState {
-  return {
-    ...p,
-    current_kgf: 0,
-    peak_kgf: 0,
-    peak_at_ms: null,
-    reading_count: 0,
-    session_started_at: null,
-    rupture_detected: false,
-    rupture_at: null
-  }
+  return { ...emptyPress, connected: p.connected, port: p.port }
 }
+
+const cleanBench = (state: SessionState) => ({
+  readings: [] as PressReading[],
+  phase: 'idle' as Phase,
+  ruptureType: null,
+  sealing: false,
+  sealError: null,
+  press: clearedPress(state.press)
+})
 
 function reducer(state: SessionState, a: Action): SessionState {
   switch (a.type) {
-    case 'set_specimens':
-      return { ...state, specimens: a.specimens }
-    case 'set_operators':
-      return { ...state, operators: a.operators }
+    case 'set_operator':
+      return { ...state, operator: a.operator }
     case 'set_equipments':
       return { ...state, equipments: a.equipments }
-    case 'select_operator':
-      return { ...state, currentOperatorId: a.id }
-    case 'select_equipment':
-      return { ...state, currentEquipmentId: a.id }
+    case 'set_equipment':
+      return { ...state, equipmentId: a.id }
+    case 'set_queue':
+      return { ...state, specimens: a.specimens, queueLoaded: true }
+    case 'set_upcoming':
+      return { ...state, upcoming: a.upcoming }
+    case 'set_tab':
+      return { ...state, tab: a.tab }
+    case 'set_query':
+      return { ...state, query: a.query }
+    case 'set_queue_collapsed':
+      return { ...state, queueCollapsed: a.on }
     case 'select_specimen':
       // Troca de CP limpa a medição da prensa pra não herdar o ensaio anterior
-      return {
-        ...state,
-        selectedSpecimenId: a.id,
-        readings: [],
-        phase: 'idle',
-        modalOpen: false,
-        press: clearedPress(state.press)
-      }
+      return { ...state, selectedSpecimenId: a.id, ...cleanBench(state) }
     case 'press_state':
       return { ...state, press: a.state }
     case 'press_reading':
@@ -128,27 +164,26 @@ function reducer(state: SessionState, a: Action): SessionState {
     case 'phase':
       return { ...state, phase: a.phase }
     case 'reset_session':
+      return { ...state, ...cleanBench(state) }
+    case 'set_rupture_type':
+      return { ...state, ruptureType: a.value }
+    case 'seal_start':
+      return { ...state, sealing: true, sealError: null }
+    case 'seal_error':
+      return { ...state, sealing: false, sealError: a.message }
+    case 'sealed':
       return {
         ...state,
-        readings: [],
-        phase: 'idle',
-        modalOpen: false,
-        press: clearedPress(state.press)
+        specimens: state.specimens.map((s) => (s.id === a.specimen.id ? a.specimen : s)),
+        curves: { ...state.curves, [a.specimen.id]: a.curve },
+        sealedToast: a.toast,
+        selectedSpecimenId: a.nextId ?? a.specimen.id,
+        ...cleanBench(state)
       }
-    case 'open_modal':
-      return { ...state, modalOpen: true }
-    case 'close_modal':
-      return { ...state, modalOpen: false }
-    case 'specimen_sealed':
-      return {
-        ...state,
-        specimens: state.specimens.filter((s) => s.id !== a.specimenId),
-        selectedSpecimenId: null,
-        readings: [],
-        phase: 'idle',
-        modalOpen: false,
-        press: clearedPress(state.press)
-      }
+    case 'set_curve':
+      return { ...state, curves: { ...state.curves, [a.specimenId]: a.curve } }
+    case 'clear_sealed_toast':
+      return { ...state, sealedToast: null }
     case 'toast':
       return { ...state, toast: a.message }
     case 'set_demo_mode':
@@ -164,12 +199,14 @@ const Ctx = createContext<{ state: SessionState; dispatch: Dispatch<Action> } | 
 
 export function SessionProvider({
   children,
-  demoEmail = null
+  demoEmail = null,
+  operator = null
 }: {
   children: ReactNode
   demoEmail?: string | null
+  operator?: Operator | null
 }) {
-  const [state, dispatch] = useReducer(reducer, { ...initialState, demoEmail })
+  const [state, dispatch] = useReducer(reducer, { ...initialState, demoEmail, operator })
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>
 }
 

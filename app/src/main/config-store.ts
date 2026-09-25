@@ -4,7 +4,7 @@
 import { app } from 'electron'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
-import type { PressConfig } from '../shared/types'
+import type { PressConfig, AppConfig } from '../shared/types'
 
 const DEFAULT_PRESS_CONFIG: PressConfig = {
   port: 'COM3',
@@ -18,12 +18,6 @@ const DEFAULT_PRESS_CONFIG: PressConfig = {
   value_scale: 10
 }
 
-interface AppConfig {
-  supabase_url: string
-  supabase_anon_key: string
-  client_id: string
-}
-
 // Defaults vêm de variáveis injetadas no build (electron.vite.config.ts).
 // Em dev local: app/.env (gitignored). Em CI: secrets do GitHub.
 // Vazios são tratados como "não configurado" no boot; o usuário pode
@@ -31,7 +25,8 @@ interface AppConfig {
 const DEFAULT_APP_CONFIG: AppConfig = {
   supabase_url: process.env.BSTECH_SUPABASE_URL ?? '',
   supabase_anon_key: process.env.BSTECH_SUPABASE_ANON_KEY ?? '',
-  client_id: process.env.BSTECH_CLIENT_ID ?? ''
+  client_id: process.env.BSTECH_CLIENT_ID ?? '',
+  equipment_id: ''
 }
 
 interface FullConfig {

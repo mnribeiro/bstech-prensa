@@ -1,7 +1,7 @@
 // Simulador de ensaio pro Modo Demo (apresentacao da BStech sem prensa fisica).
 // Roda 100% no renderer: gera a curva de carga subindo e a ruptura, emitindo
 // os MESMOS eventos que o driver real mandaria via IPC (reading/state/rupture).
-// Assim o resto do app (CPStage ao vivo, modal, selagem real) funciona identico.
+// Assim o resto do app (curva ao vivo, resultado, selagem real) funciona identico.
 
 import type { Specimen, PressLiveState, PressReading } from '@shared/types'
 import type { DemoOutcome } from '../store/session'
@@ -9,7 +9,7 @@ import { calcFckMpa } from './format'
 
 const POLL_MS = 100 // 10 Hz, igual ao driver real
 const RAMP_MS = 9000 // ~9s subindo a carga, tempo de narrar na apresentacao
-const MODAL_DELAY_MS = 1800 // espera depois da ruptura pra abrir a bancada
+const DROP_MS = 1500 // depois da ruptura a carga cai aos poucos, igual a prensa
 
 // Carga de pico (kgf) que faz o CP aprovar ou reprovar.
 // Resolve o peak pra que o fck CORRIGIDO caia ~8% acima do alvo (aprovar)
@@ -29,7 +29,6 @@ export interface DemoEmitters {
   reading: (r: PressReading) => void
   state: (s: PressLiveState) => void
   rupture: () => void
-  openModal: () => void
 }
 
 export interface DemoHandle {
@@ -49,7 +48,7 @@ export function runDemoSimulation(
   let count = 0
   let ruptured = false
   let ramp: ReturnType<typeof setInterval> | null = null
-  let modalTimer: ReturnType<typeof setTimeout> | null = null
+  let ruptureAt = 0
 
   function snapshot(currentKgf: number): PressLiveState {
     return {
@@ -61,7 +60,7 @@ export function runDemoSimulation(
       reading_count: count,
       session_started_at: startedAt,
       rupture_detected: ruptured,
-      rupture_at: ruptured ? elapsed : null
+      rupture_at: ruptured ? ruptureAt : null
     }
   }
 
@@ -82,29 +81,37 @@ export function runDemoSimulation(
       return
     }
 
-    // Atingiu o topo: trava o pico no alvo e a carga cai a zero (CP rompeu, carga liberada).
-    if (peak < target) {
-      peak = target
-      peakAt = elapsed
+    // Atingiu o topo: trava o pico no alvo e avisa a ruptura uma vez
+    if (!ruptured) {
+      if (peak < target) {
+        peak = target
+        peakAt = elapsed
+      }
+      ruptured = true
+      ruptureAt = elapsed
+      count++
+      emit.reading({ t: elapsed, kgf: Math.round(peak * 100) / 100 })
+      emit.state(snapshot(peak))
+      emit.rupture()
+      return
     }
-    ruptured = true
+
+    // CP rompido: a carga despenca e vai a zero, a curva mostra a queda inteira
+    const drop = Math.min((elapsed - ruptureAt) / DROP_MS, 1)
+    const value = Math.max(0, peak * Math.pow(1 - drop, 2.2) + (drop < 1 ? (Math.random() - 0.5) * 120 : 0))
     count++
-    emit.reading({ t: elapsed, kgf: 0 })
-    emit.state(snapshot(0))
-    emit.rupture()
-    if (ramp) {
+    emit.reading({ t: elapsed, kgf: Math.round(value * 100) / 100 })
+    emit.state(snapshot(value))
+    if (drop >= 1 && ramp) {
       clearInterval(ramp)
       ramp = null
     }
-    modalTimer = setTimeout(() => emit.openModal(), MODAL_DELAY_MS)
   }, POLL_MS)
 
   return {
     stop() {
       if (ramp) clearInterval(ramp)
-      if (modalTimer) clearTimeout(modalTimer)
       ramp = null
-      modalTimer = null
     }
   }
 }

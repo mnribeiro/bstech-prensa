@@ -54,6 +54,7 @@ export interface Specimen {
   corrected_fck_mpa: number | null
   rupture_type: string | null
   ruptured_at: string | null
+  rupture_operator_name: string | null
 }
 
 export interface Operator {
@@ -173,6 +174,15 @@ export interface Calibration {
 
 /** Pontos default do FRE-987 (kgf) */
 export const DEFAULT_CALIBRATION_POINTS_KGF = [10000, 20000, 30000, 50000, 70000, 80000, 90000]
+
+// Configuracao do app neste computador (bstech-prensa-config.json)
+export interface AppConfig {
+  supabase_url: string
+  supabase_anon_key: string
+  client_id: string
+  /** Prensa (lab_equipment) ligada a este computador. Fica fixa, o operador nao escolhe. */
+  equipment_id: string
+}
 
 // Configuracao da prensa (carregada do arquivo de config)
 export interface PressConfig {

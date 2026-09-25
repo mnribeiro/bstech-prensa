@@ -3,19 +3,71 @@
 @tailwind utilities;
 
 @layer base {
+  /* Paleta em canais RGB pra o Tailwind aplicar opacidade (bg-bs-danger/15 etc).
+     Escuro e o padrao; o claro entra com data-theme="light" no <html>. */
+  :root {
+    --bs-bg: 10 10 10;
+    --bs-surface: 10 10 10;
+    --bs-panel: 18 18 18;
+    --bs-panel-soft: 23 23 23;
+    --bs-card3: 28 28 28;
+    --bs-border: 28 28 28;
+    --bs-border-soft: 22 22 22;
+    --bs-line2: 40 40 40;
+    --bs-text: 236 236 236;
+    --bs-text-dim: 155 155 155;
+    --bs-text-mute: 106 106 106;
+    --bs-accent: 59 130 246;
+    --bs-accent-text: 141 183 251;
+    --bs-success: 88 185 138;
+    --bs-warning: 217 164 65;
+    --bs-warning-text: 236 201 135;
+    --bs-danger: 224 101 94;
+    --bs-purple: 163 113 247;
+    --bs-on-color: 10 10 10;
+    --bs-scroll: rgba(255, 255, 255, 0.08);
+    --bs-scroll-hover: rgba(255, 255, 255, 0.18);
+    color-scheme: dark;
+  }
+  :root[data-theme='light'] {
+    --bs-bg: 255 255 255;
+    --bs-surface: 255 255 255;
+    --bs-panel: 244 245 247;
+    --bs-panel-soft: 236 238 241;
+    --bs-card3: 227 230 234;
+    --bs-border: 237 237 237;
+    --bs-border-soft: 243 243 243;
+    --bs-line2: 224 224 224;
+    --bs-text: 22 24 28;
+    --bs-text-dim: 91 96 106;
+    --bs-text-mute: 139 144 154;
+    --bs-accent: 37 99 235;
+    --bs-accent-text: 29 78 216;
+    --bs-success: 31 157 99;
+    --bs-warning: 183 121 31;
+    --bs-warning-text: 138 90 18;
+    --bs-danger: 200 64 58;
+    --bs-purple: 124 58 237;
+    --bs-on-color: 255 255 255;
+    --bs-scroll: rgba(0, 0, 0, 0.1);
+    --bs-scroll-hover: rgba(0, 0, 0, 0.22);
+    color-scheme: light;
+  }
+
   html, body, #root { height: 100%; }
   body {
-    background: #141414;
-    color: #f2f2f2;
-    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: rgb(var(--bs-bg));
+    color: rgb(var(--bs-text));
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
     user-select: none;
     -webkit-font-smoothing: antialiased;
   }
-  /* Scrollbars dark */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  /* Rolagem fina e discreta, aparece mais no hover */
+  * { scrollbar-width: thin; scrollbar-color: var(--bs-scroll) transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3f3f3f; }
+  ::-webkit-scrollbar-thumb { background: var(--bs-scroll); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--bs-scroll-hover); }
 }
 
 @layer components {
@@ -24,6 +76,9 @@
   }
   .label-mute {
     @apply text-bs-text-mute text-xs uppercase tracking-wider font-medium;
+  }
+  .lbl {
+    @apply text-bs-text-mute text-[11.5px] uppercase tracking-[0.06em] font-semibold;
   }
   .btn-primary {
     @apply bg-bs-accent text-white px-4 py-2 rounded-md font-medium hover:brightness-110
@@ -47,5 +102,25 @@
   .badge-ok   { @apply bg-bs-text-mute/15 text-bs-text-dim; }
   .row-hover {
     @apply hover:bg-bs-panel/60 transition-colors;
+  }
+  .icon-btn {
+    @apply w-9 h-9 rounded-lg grid place-items-center text-bs-text-mute hover:bg-bs-panel-soft hover:text-bs-text transition;
+  }
+  .pill {
+    @apply inline-flex items-center gap-2 h-9 px-3 rounded-lg bg-bs-panel-soft text-[13px] text-bs-text whitespace-nowrap shrink-0;
+  }
+  .age {
+    @apply inline-flex items-center h-[18px] px-1.5 rounded-[5px] text-[11px] font-semibold bg-bs-card3 text-bs-text-dim whitespace-nowrap;
+  }
+  .age-28 { @apply bg-bs-accent/15 text-bs-accent-text; }
+  .late-tag {
+    @apply inline-flex items-center text-[11px] font-semibold text-bs-danger bg-bs-danger/15 px-[7px] py-0.5 rounded-[5px] whitespace-nowrap;
+  }
+  .late-tag-soft { @apply text-bs-warning bg-bs-warning/15; }
+  .ro {
+    @apply bg-bs-panel rounded-xl px-4 py-3.5;
+  }
+  .ro-k {
+    @apply text-[11.5px] text-bs-text-mute uppercase tracking-[0.06em] font-semibold;
   }
 }

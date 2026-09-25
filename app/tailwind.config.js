@@ -4,24 +4,29 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta BStech (alinhada com o webapp em ../bstech-sistema)
+        // Paleta BSTECH em variaveis (styles.css): tema escuro e claro trocam so os valores.
         bs: {
-          bg: '#141414',          // background (hsl 0 0% 8%)
-          surface: '#0d0d0d',     // sidebar (hsl 0 0% 5%)
-          panel: '#1c1c1c',       // card (hsl 0 0% 11%)
-          'panel-soft': '#212121',
-          border: '#262626',      // border (hsl 0 0% 15%)
-          'border-soft': '#1f1f1f',
-          text: '#f2f2f2',        // foreground (hsl 0 0% 95%)
-          'text-dim': '#adadad',  // muted-foreground (hsl 0 0% 68%)
-          'text-mute': '#737373',
-          accent: '#3b82f6',      // primary (hsl 217 91% 60%)
-          'accent-soft': 'rgba(59,130,246,0.14)',
-          'accent-ring': 'rgba(59,130,246,0.35)',
-          success: '#22c55e',
-          warning: '#f59e0b',
-          danger: '#ef4444',
-          purple: '#a371f7'
+          bg: 'rgb(var(--bs-bg) / <alpha-value>)',
+          surface: 'rgb(var(--bs-surface) / <alpha-value>)',
+          panel: 'rgb(var(--bs-panel) / <alpha-value>)',
+          'panel-soft': 'rgb(var(--bs-panel-soft) / <alpha-value>)',
+          card3: 'rgb(var(--bs-card3) / <alpha-value>)',
+          border: 'rgb(var(--bs-border) / <alpha-value>)',
+          'border-soft': 'rgb(var(--bs-border-soft) / <alpha-value>)',
+          line2: 'rgb(var(--bs-line2) / <alpha-value>)',
+          text: 'rgb(var(--bs-text) / <alpha-value>)',
+          'text-dim': 'rgb(var(--bs-text-dim) / <alpha-value>)',
+          'text-mute': 'rgb(var(--bs-text-mute) / <alpha-value>)',
+          accent: 'rgb(var(--bs-accent) / <alpha-value>)',
+          'accent-text': 'rgb(var(--bs-accent-text) / <alpha-value>)',
+          'accent-soft': 'rgb(var(--bs-accent) / 0.14)',
+          'accent-ring': 'rgb(var(--bs-accent) / 0.35)',
+          success: 'rgb(var(--bs-success) / <alpha-value>)',
+          warning: 'rgb(var(--bs-warning) / <alpha-value>)',
+          'warning-text': 'rgb(var(--bs-warning-text) / <alpha-value>)',
+          danger: 'rgb(var(--bs-danger) / <alpha-value>)',
+          purple: 'rgb(var(--bs-purple) / <alpha-value>)',
+          'on-color': 'rgb(var(--bs-on-color) / <alpha-value>)'
         }
       },
       fontFamily: {
@@ -31,7 +36,9 @@ export default {
       animation: {
         float: 'float 4s ease-in-out infinite',
         shake: 'shake 0.08s ease-in-out infinite',
-        pulse_slow: 'pulse_slow 2s ease-in-out infinite'
+        pulse_slow: 'pulse_slow 2s ease-in-out infinite',
+        live: 'pulse_slow 1s ease-in-out infinite',
+        toast: 'toast_in 300ms cubic-bezier(0.23, 1, 0.32, 1)'
       },
       keyframes: {
         float: {
@@ -46,6 +53,10 @@ export default {
         pulse_slow: {
           '0%, 100%': { opacity: 0.6 },
           '50%': { opacity: 1 }
+        },
+        toast_in: {
+          from: { opacity: 0, transform: 'translate(-50%, -8px)' },
+          to: { opacity: 1, transform: 'translate(-50%, 0)' }
         }
       }
     }
