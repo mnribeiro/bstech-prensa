@@ -97,7 +97,7 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
       {/* Lado da imagem: foto da prensa como fundo da coluna inteira, texto por cima
           no degrade de baixo. Fica escuro nos dois temas */}
       <div className="relative overflow-hidden bg-[#0a0a0a] text-[#ececec]">
-        <div className="absolute inset-0 bg-cover bg-[position:42%_center]" style={{ backgroundImage: `url(${prensaImg})` }} />
+        <div className="absolute inset-0 bg-no-repeat bg-[length:auto_86%] bg-[position:40%_top]" style={{ backgroundImage: `url(${prensaImg})` }} />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] from-[18%] via-[#0a0a0a]/70 via-[42%] to-transparent to-[70%]" />
         <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-[#0a0a0a] to-transparent" />
         <div className="relative z-10 h-full flex flex-col justify-end px-14 pt-12 pb-16">
