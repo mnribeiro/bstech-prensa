@@ -45,7 +45,7 @@ export function BenchCenter() {
       <main className="grid place-items-center text-center px-6 min-w-0">
         <div>
           <div className="text-lg font-semibold">Escolha um CP na fila</div>
-          <div className="text-[13.5px] text-bs-text-dim mt-1.5">ou bipe a etiqueta do CP que está na mão</div>
+          <div className="text-[13.5px] text-bs-text-dim mt-1.5">ou busque pela etiqueta no topo da fila</div>
         </div>
       </main>
     )

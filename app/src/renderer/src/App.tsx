@@ -9,7 +9,6 @@ import { DemoControlBar } from './components/DemoControlBar'
 import {
   getClient,
   fetchQueue,
-  fetchUpcomingCounts,
   fetchPressEquipment,
   resolveAccess,
   type Access,
@@ -63,7 +62,7 @@ function Inner() {
   const sp = state.specimens.find((s) => s.id === state.selectedSpecimenId) ?? null
 
   const loadQueue = useCallback(async () => {
-    const [specs, upcoming] = await Promise.all([fetchQueue(), fetchUpcomingCounts()])
+    const { specimens: specs, upcoming } = await fetchQueue()
     dispatch({ type: 'set_queue', specimens: specs })
     dispatch({ type: 'set_upcoming', upcoming })
     return specs

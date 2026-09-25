@@ -34,76 +34,27 @@ export function localIsoDate(d: Date = new Date()): string {
   return `${y}-${m}-${day}`
 }
 
-const SPECIMEN_SELECT = `
-  id, specimen_code, status, test_age_days, due_date,
-  specimen_diameter_mm, specimen_height_mm, weight_kg,
-  height_diameter_ratio, correction_factor,
-  project_id, batch_id,
-  applied_load_ton, calculated_fck_mpa, corrected_fck_mpa, rupture_type, ruptured_at,
-  specimen_molder:operators!specimens_molding_operator_id_fkey(name),
-  rupture_operator:operators!specimens_rupture_operator_id_fkey(name),
-  projects!inner(name),
-  concrete_batches!inner(
-    batch_code,
-    molding_date,
-    concrete_suppliers(name),
-    batch_molder:operators!concrete_batches_molding_operator_id_fkey(name),
-    batch_structure_allocations(
-      structures(name, structure_type, target_fck_mpa)
-    )
-  )
-`
-
-// Fila do dia: tudo que vence hoje ou ja venceu e ainda nao rompeu, mais o que
-// foi rompido hoje (pra mostrar o progresso e o par do lote). O filtro e no
-// servidor, por data, entao o CP de hoje nunca fica de fora por limite de linhas.
-export async function fetchQueue(): Promise<Specimen[]> {
+// Fila do dia numa chamada so (funcao prensa_fila no banco): tudo que vence hoje
+// ou ja venceu e ainda nao rompeu, mais o que foi rompido hoje (progresso e par do
+// lote), e a contagem dos proximos dias. A permissao e resolvida por obra no banco;
+// ler specimens direto avaliava a permissao CP por CP e estourava o tempo limite.
+export async function fetchQueue(): Promise<{ specimens: Specimen[]; upcoming: { date: string; count: number }[] }> {
   const sb = await getClient()
-  const today = localIsoDate()
   const startOfToday = new Date()
   startOfToday.setHours(0, 0, 0, 0)
-  const PAGE = 1000
-  const rows: any[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb
-      .from('specimens')
-      .select(SPECIMEN_SELECT)
-      .lte('due_date', today)
-      .is('deleted_at', null)
-      .or(`status.eq.PENDING,ruptured_at.gte.${startOfToday.toISOString()}`)
-      .order('due_date', { ascending: true })
-      .order('specimen_code', { ascending: true })
-      .range(from, from + PAGE - 1)
-    if (error) throw error
-    rows.push(...(data ?? []))
-    if (!data || data.length < PAGE) break
-  }
-  return rows.map(mapSpecimen)
+  const { data, error } = await sb.rpc('prensa_fila', {
+    p_hoje: localIsoDate(),
+    p_inicio_dia: startOfToday.toISOString(),
+    p_dias_proximos: 3
+  })
+  if (error) throw error
+  const fila = (data?.fila ?? []) as Record<string, unknown>[]
+  return { specimens: fila.map(mapSpecimen), upcoming: data?.proximos ?? [] }
 }
 
-// Proximos dias: so a contagem, os CPs entram na fila no dia do vencimento
-export async function fetchUpcomingCounts(days = 3): Promise<{ date: string; count: number }[]> {
-  const sb = await getClient()
-  const out: { date: string; count: number }[] = []
-  for (let i = 1; i <= days; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    const iso = localIsoDate(d)
-    const { count, error } = await sb
-      .from('specimens')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'PENDING')
-      .eq('due_date', iso)
-      .is('deleted_at', null)
-    if (error) throw error
-    out.push({ date: iso, count: count ?? 0 })
-  }
-  return out
-}
+const num = (v: unknown): number | null => (v == null ? null : Number(v))
 
 function mapSpecimen(row: any): Specimen {
-  const batch = row.concrete_batches
-  const struct = pickStructure(batch?.batch_structure_allocations)
   return {
     id: row.id,
     specimen_code: row.specimen_code,
@@ -111,38 +62,27 @@ function mapSpecimen(row: any): Specimen {
     test_age_days: row.test_age_days,
     due_date: row.due_date,
     specimen_diameter_mm: Number(row.specimen_diameter_mm),
-    specimen_height_mm: row.specimen_height_mm ? Number(row.specimen_height_mm) : null,
-    weight_kg: row.weight_kg ? Number(row.weight_kg) : null,
-    height_diameter_ratio: row.height_diameter_ratio ? Number(row.height_diameter_ratio) : null,
-    correction_factor: row.correction_factor ? Number(row.correction_factor) : null,
+    specimen_height_mm: num(row.specimen_height_mm),
+    weight_kg: num(row.weight_kg),
+    height_diameter_ratio: num(row.height_diameter_ratio),
+    correction_factor: num(row.correction_factor),
     project_id: row.project_id,
     batch_id: row.batch_id,
-    project_name: row.projects?.name?.trim() ?? 'n/d',
-    batch_code: batch?.batch_code ?? 'n/d',
-    fck_spec_mpa: struct?.target_fck_mpa != null ? Number(struct.target_fck_mpa) : null,
-    structure_name: struct?.name ?? null,
-    structure_type: struct?.structure_type ?? null,
-    supplier_name: batch?.concrete_suppliers?.name ?? null,
-    molder_name: row.specimen_molder?.name ?? batch?.batch_molder?.name ?? null,
-    molding_date: batch?.molding_date ?? null,
-    applied_load_ton: row.applied_load_ton ? Number(row.applied_load_ton) : null,
-    calculated_fck_mpa: row.calculated_fck_mpa ? Number(row.calculated_fck_mpa) : null,
-    corrected_fck_mpa: row.corrected_fck_mpa ? Number(row.corrected_fck_mpa) : null,
+    project_name: row.project_name || 'n/d',
+    batch_code: row.batch_code ?? 'n/d',
+    fck_spec_mpa: num(row.fck_spec_mpa),
+    structure_name: row.structure_name ?? null,
+    structure_type: row.structure_type ?? null,
+    supplier_name: row.supplier_name ?? null,
+    molder_name: row.molder_name ?? null,
+    molding_date: row.molding_date ?? null,
+    applied_load_ton: num(row.applied_load_ton),
+    calculated_fck_mpa: num(row.calculated_fck_mpa),
+    corrected_fck_mpa: num(row.corrected_fck_mpa),
     rupture_type: row.rupture_type ?? null,
     ruptured_at: row.ruptured_at ?? null,
-    rupture_operator_name: row.rupture_operator?.name ?? null
+    rupture_operator_name: row.rupture_operator_name ?? null
   }
-}
-
-function pickStructure(
-  allocations: any
-): { name: string; structure_type: string | null; target_fck_mpa: number | null } | null {
-  if (!Array.isArray(allocations)) return null
-  for (const alloc of allocations) {
-    const s = alloc?.structures
-    if (s?.name) return s
-  }
-  return null
 }
 
 // Operador de ruptura ligado ao login (operators.user_id). Cada operador entra
