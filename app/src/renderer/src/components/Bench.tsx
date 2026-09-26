@@ -249,7 +249,7 @@ function Kv({ k, v, warn = false }: { k: string; v: string; warn?: boolean }) {
   return (
     <div className="flex justify-between gap-3 text-[13px] py-[3px] text-bs-text-dim">
       <span className="shrink-0">{k}</span>
-      <b className={`font-medium text-right truncate ${warn ? 'text-bs-warning-text' : 'text-bs-text'}`}>{v}</b>
+      <b className={`font-semibold text-right truncate ${warn ? 'text-bs-warning-text' : 'text-bs-text'}`}>{v}</b>
     </div>
   )
 }

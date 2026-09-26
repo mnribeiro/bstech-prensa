@@ -276,13 +276,15 @@ export class PressDriver extends EventEmitter {
       const last = this.lastSamples[this.lastSamples.length - 1] ?? 0
       return Math.max(0, last - 800 - Math.random() * 400)
     }
-    // Loading: sobe pseudo-quadratico ate atingir target, com jitter de +-100
+    // Loading: sobe ate o target na velocidade da norma, com jitter de +-30
     const t = this.mockTickMs / 1000 // segundos
-    const totalDuration = 12 // ~12s pra atingir pico
+    // Sobe perto do teto da NBR 5739 (0,52 MPa/s, limite 0,6) num CP de 100 mm, quase linear
+    const peakMpa = (this.mockPeakTarget * 9.80665) / (Math.PI * 50 ** 2)
+    const totalDuration = peakMpa / 0.52
     const progress = Math.min(t / totalDuration, 1)
-    const eased = Math.pow(progress, 1.6) // curva mais lenta no inicio
+    const eased = Math.pow(progress, 1.05)
     const base = eased * this.mockPeakTarget
-    const jitter = (Math.random() - 0.5) * 200
+    const jitter = (Math.random() - 0.5) * 60
     const value = Math.max(0, base + jitter)
     if (progress >= 1) {
       // Hora da ruptura: drop forte na proxima leitura

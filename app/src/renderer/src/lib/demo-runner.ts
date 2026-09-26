@@ -8,7 +8,10 @@ import type { DemoOutcome } from '../store/session'
 import { calcFckMpa } from './format'
 
 const POLL_MS = 100 // 10 Hz, igual ao driver real
-const RAMP_MS = 9000 // ~9s subindo a carga, tempo de narrar na apresentacao
+// Carrega na velocidade da NBR 5739 (0,45 MPa/s), quase linear como a prensa real
+const NBR_RATE_MPA_S = 0.52 // perto do teto da NBR 5739 (0,45 +- 0,15); ao vivo, com o ruido, fica abaixo de 0,6
+const RAMP_EXP = 1.05
+const JITTER_KGF = 30
 const DROP_MS = 1500 // depois da ruptura a carga cai aos poucos, igual a prensa
 
 // Carga de pico (kgf) que faz o CP aprovar ou reprovar.
@@ -41,6 +44,7 @@ export function runDemoSimulation(
   emit: DemoEmitters
 ): DemoHandle {
   const target = demoTargetKgf(sp, outcome)
+  const rampMs = (calcFckMpa(target, sp.specimen_diameter_mm || 100) / NBR_RATE_MPA_S) * 1000
   const startedAt = Date.now()
   let elapsed = 0
   let peak = 0
@@ -66,11 +70,11 @@ export function runDemoSimulation(
 
   ramp = setInterval(() => {
     elapsed += POLL_MS
-    const progress = Math.min(elapsed / RAMP_MS, 1)
+    const progress = Math.min(elapsed / rampMs, 1)
 
     if (progress < 1) {
-      const eased = Math.pow(progress, 1.6) // sobe lento no inicio, igual ao mock do driver
-      const value = Math.max(0, eased * target + (Math.random() - 0.5) * 150)
+      const eased = Math.pow(progress, RAMP_EXP) // assentamento curto no inicio, depois linear
+      const value = Math.max(0, eased * target + (Math.random() - 0.5) * JITTER_KGF)
       count++
       if (value > peak) {
         peak = value

@@ -48,7 +48,7 @@ export function PressChart({ sp, readings, ruptured, ghost }: Props) {
 
   const yMax =
     Math.max(mpaToTf(expected), fckTf, pk ? tf(pk.kgf) : 0, ghostPk ? tf(ghostPk.kgf) : 0) * 1.22
-  const xMax = Math.max(expected / 0.45 + 8, lastT + 6, ghostLastT + 6)
+  const xMax = Math.max(expected / 0.52 + 8, lastT + 6, ghostLastT + 6)
   const L = 54
   const R = 20
   const T = 16
