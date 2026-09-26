@@ -47,8 +47,8 @@ export function UpdateBanner({ variant = 'login' }: { variant?: 'login' | 'compa
 
   if (state.phase === 'checking') {
     return (
-      <div className={`${base} bg-blue-500/10 border-blue-500/40 text-blue-300`}>
-        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+      <div className={`${base} bg-bs-accent/10 border-bs-accent/40 text-bs-accent-text`}>
+        <span className="w-2 h-2 rounded-full bg-bs-accent animate-pulse" />
         <span>Verificando atualização…</span>
       </div>
     )
@@ -60,8 +60,8 @@ export function UpdateBanner({ variant = 'login' }: { variant?: 'login' | 'compa
         ? Math.round((state.downloaded_bytes / state.total_bytes) * 100)
         : null
     return (
-      <div className={`${base} bg-blue-500/10 border-blue-500/40 text-blue-300`}>
-        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+      <div className={`${base} bg-bs-accent/10 border-bs-accent/40 text-bs-accent-text`}>
+        <span className="w-2 h-2 rounded-full bg-bs-accent animate-pulse" />
         <span>
           Baixando atualização v{state.remote_version}
           {pct !== null ? ` · ${pct}%` : '…'}
@@ -73,12 +73,12 @@ export function UpdateBanner({ variant = 'login' }: { variant?: 'login' | 'compa
   // phase === 'ready': banner azul forte com botão Atualizar
   return (
     <div
-      className={`${base} bg-blue-500/15 border-blue-500/50 text-blue-100 ${
-        isLogin ? 'shadow-[0_0_20px_rgba(59,130,246,0.15)]' : ''
+      className={`${base} bg-bs-accent/10 border-bs-accent/40 text-bs-text ${
+        isLogin ? 'shadow-[0_0_20px_rgb(var(--bs-accent)/0.12)]' : ''
       }`}
     >
       <svg
-        className={isLogin ? 'w-5 h-5 text-blue-300 flex-shrink-0' : 'w-4 h-4 text-blue-300'}
+        className={isLogin ? 'w-5 h-5 text-bs-accent-text flex-shrink-0' : 'w-4 h-4 text-bs-accent-text'}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -90,16 +90,16 @@ export function UpdateBanner({ variant = 'login' }: { variant?: 'login' | 'compa
         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
       </svg>
       <div className="flex-1 min-w-0">
-        <div className="font-medium">Nova versão disponível: v{state.remote_version}</div>
+        <div className="font-semibold">Nova versão disponível: v{state.remote_version}</div>
         {isLogin && (
-          <div className="text-xs text-blue-200/70 mt-0.5">
+          <div className="text-xs text-bs-text-dim mt-0.5">
             Atual: v{state.current_version} · Atualize agora pra pegar as melhorias mais recentes.
           </div>
         )}
       </div>
       <button
         onClick={() => window.bstech.update.install()}
-        className={`bg-blue-500 hover:bg-blue-400 text-white font-medium rounded transition flex-shrink-0 ${
+        className={`bg-bs-accent hover:brightness-110 text-white font-semibold rounded-md transition flex-shrink-0 ${
           isLogin ? 'px-4 py-2 text-sm' : 'px-3 py-1 text-xs'
         }`}
       >

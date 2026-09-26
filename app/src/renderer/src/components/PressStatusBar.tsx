@@ -36,14 +36,14 @@ export function PressStatusBar() {
     <div
       className={`rounded border p-3 flex items-center justify-between gap-4 ${
         connected
-          ? 'bg-emerald-500/10 border-emerald-500/40'
+          ? 'bg-bs-success/10 border-bs-success/40'
           : 'bg-bs-danger/10 border-bs-danger/40'
       }`}
     >
       <div className="flex items-center gap-3">
         <span
           className={`h-2.5 w-2.5 rounded-full ${
-            connected ? 'bg-emerald-400 animate-pulse' : 'bg-bs-danger'
+            connected ? 'bg-bs-success animate-pulse' : 'bg-bs-danger'
           }`}
         />
         <div>
@@ -65,7 +65,7 @@ export function PressStatusBar() {
 
       <div className="flex items-center gap-3">
         {testResult && testResult.ok && (
-          <span className="text-xs text-emerald-400">
+          <span className="text-xs text-bs-success">
             ✓ {testResult.samples} amostras · média {testResult.media_kgf.toLocaleString('pt-BR')}{' '}
             kgf
           </span>

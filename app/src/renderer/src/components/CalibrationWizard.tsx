@@ -272,7 +272,7 @@ export function CalibrationWizard({ onDone }: Props) {
       </div>
 
       {error && <div className="bg-bs-danger/15 text-bs-danger p-3 rounded">{error}</div>}
-      {success && <div className="bg-emerald-500/15 text-emerald-400 p-3 rounded">{success}</div>}
+      {success && <div className="bg-bs-success/15 text-bs-success p-3 rounded">{success}</div>}
 
       <div className="flex gap-3">
         <button

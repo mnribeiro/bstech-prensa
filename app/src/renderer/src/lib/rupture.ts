@@ -51,26 +51,38 @@ export function verdictOf(mpa: number, sp: Specimen): Verdict {
   return mpa >= sp.fck_spec_mpa ? 'pass' : 'fail'
 }
 
-// Mesma lista, letras, nomes e desenhos da BSTECH web (ficha de ruptura)
-export const RUPTURE_TYPES: { value: RuptureType; letter: string; label: string; short: string; path: string }[] = [
-  { value: 'cone', letter: 'A', label: 'Cônica', short: 'Cônica', path: 'M8 12 L13 5 L18 12' },
-  { value: 'split', letter: 'B', label: 'Cônica e bipartida', short: 'Cônica/bip.', path: 'M8 12 L13 5 L18 12 M13 5 L13 30' },
-  { value: 'columnar', letter: 'C', label: 'Colunar', short: 'Colunar', path: 'M10 4 L10 30 M16 4 L16 30' },
-  { value: 'cone_and_shear', letter: 'D', label: 'Cônica e cisalhada', short: 'Cônica/cis.', path: 'M8 12 L13 5 L18 12 M8 24 L18 16' },
-  { value: 'shear', letter: 'E', label: 'Cisalhada', short: 'Cisalhada', path: 'M7 27 L19 7' },
+// Mesma lista, letras e nomes da ficha de ruptura da BSTECH web (NBR 5739)
+export const RUPTURE_TYPES: { value: RuptureType; letter: string; label: string; desc: string; path: string }[] = [
+  { value: 'cone', letter: 'A', label: 'Cônica', desc: 'Cone bem formado nas duas faces', path: 'M8 12 L13 5 L18 12' },
+  { value: 'split', letter: 'B', label: 'Cônica e bipartida', desc: 'Cone com partição vertical', path: 'M8 12 L13 5 L18 12 M13 5 L13 30' },
+  {
+    value: 'columnar',
+    letter: 'C',
+    label: 'Colunar',
+    desc: 'Fissuras verticais paralelas, com formação de cones',
+    path: 'M10 4 L10 30 M16 4 L16 30'
+  },
+  {
+    value: 'cone_and_shear',
+    letter: 'D',
+    label: 'Cônica e cisalhada',
+    desc: 'Cone numa face e plano inclinado',
+    path: 'M8 12 L13 5 L18 12 M8 24 L18 16'
+  },
+  { value: 'shear', letter: 'E', label: 'Cisalhada', desc: 'Fratura diagonal única', path: 'M7 27 L19 7' },
   {
     value: 'top_bottom_fracture',
     letter: 'F',
     label: 'Fraturas no topo e/ou na base',
-    short: 'Topo/base',
+    desc: 'Fraturas no topo e/ou na base, abaixo do capeamento',
     path: 'M8 9 L13 6 L18 9 M8 25 L13 28 L18 25'
   },
   {
     value: 'top_fracture',
     letter: 'G',
     label: 'Fraturas próximas ao topo',
-    short: 'Junto ao topo',
-    path: 'M8 8 L13 6 L18 9 M9 13 L14 11 L18 13'
+    desc: 'Similar ao tipo F, com as fraturas próximas ao topo',
+    path: 'M8 9 L13 6 L18 9 M8 14 L13 11 L18 14'
   }
 ]
 

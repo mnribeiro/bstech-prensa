@@ -318,7 +318,7 @@ function Inner() {
       ) : (
         <div
           className="flex-1 grid min-h-0 transition-[grid-template-columns] duration-[260ms] ease-[cubic-bezier(0.23,1,0.32,1)]"
-          style={{ gridTemplateColumns: `${state.queueCollapsed ? '64px' : '380px'} 1fr 340px` }}
+          style={{ gridTemplateColumns: `${state.queueCollapsed ? '64px' : '380px'} 1fr 400px` }}
         >
           <div className="border-r border-bs-border min-h-0 min-w-0 overflow-hidden">
             {state.queueCollapsed ? <QueueRail /> : <Queue onSelect={selectSpecimen} />}

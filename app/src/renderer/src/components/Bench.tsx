@@ -279,6 +279,7 @@ function ResultBlock({ onSeal }: { onSeal: () => void }) {
     : verdictOf(peakMpa, sp)
   const late = lateDays(sp, sealed && sp.ruptured_at ? localIsoDate(new Date(sp.ruptured_at)) : localIsoDate())
   const type: RuptureType | null = sealed ? ruptureTypeFromBstech(sp.rupture_type) : state.ruptureType
+  const chosen = RUPTURE_TYPES.find((t) => t.value === type) ?? null
   const partnerMpa = partner && isDone(partner) ? mpaOf(partner) : null
   const avg = averageRate(readings, diameterOf(sp))
   const sealedAt = sp.ruptured_at ? new Date(sp.ruptured_at) : null
@@ -321,28 +322,39 @@ function ResultBlock({ onSeal }: { onSeal: () => void }) {
       </div>
 
       <div className="lbl mt-1.5">Tipo de ruptura</div>
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-7 gap-1.5">
         {RUPTURE_TYPES.map((t) => {
           const on = type === t.value
           return (
             <button
               key={t.value}
               disabled={sealed}
-              onClick={() => dispatch({ type: 'set_rupture_type', value: t.value })}
               title={`${t.letter} · ${t.label}`}
-              className={`h-[74px] rounded-[9px] flex flex-col items-center justify-center gap-[2px] px-1 transition ${
+              onClick={() => dispatch({ type: 'set_rupture_type', value: t.value })}
+              className={`h-[58px] min-w-0 rounded-[9px] flex flex-col items-center justify-center gap-[5px] transition ${
                 on ? 'bg-bs-accent text-white' : 'bg-bs-panel-soft text-bs-text-dim hover:bg-bs-card3 hover:text-bs-text'
               } ${sealed ? 'cursor-default' : ''}`}
             >
-              <svg viewBox="0 0 26 34" className="w-5 h-[26px]" aria-hidden>
+              <svg viewBox="0 0 26 34" className="w-[18px] h-6" aria-hidden>
                 <rect x="4" y="3" width="18" height="28" rx="2" fill="none" stroke="currentColor" strokeWidth={1.4} opacity={0.6} />
                 <path d={t.path} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
               </svg>
               <b className="text-[13px] font-bold leading-none">{t.letter}</b>
-              <span className="text-[10.5px] leading-tight text-center">{t.short}</span>
             </button>
           )
         })}
+      </div>
+      <div className="min-h-[38px] text-[13px] leading-snug text-bs-text-dim">
+        {chosen ? (
+          <>
+            <b className="font-semibold text-bs-text">
+              {chosen.letter} · {chosen.label}.
+            </b>{' '}
+            {chosen.desc}.
+          </>
+        ) : (
+          'Escolha o tipo de ruptura pra selar.'
+        )}
       </div>
 
       {sealed ? (
