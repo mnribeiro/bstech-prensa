@@ -93,7 +93,7 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
   }
 
   return (
-    <div className="h-full grid grid-cols-[1.45fr_1fr] bg-bs-bg">
+    <div className="h-full grid grid-cols-[1.3fr_1fr] bg-bs-bg">
       {/* Lado da imagem: foto da prensa como fundo da coluna inteira, texto por cima
           no degrade de baixo. Fica escuro nos dois temas */}
       <div className="relative overflow-hidden bg-[#0a0a0a] text-[#ececec]">
@@ -139,15 +139,15 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
         <button className="icon-btn absolute top-5 right-5" title={theme === 'light' ? 'Tema escuro' : 'Tema claro'} onClick={toggle}>
           {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
         </button>
-        <form onSubmit={handleSubmit} className="w-[400px] max-w-full grid gap-[18px]">
+        <form onSubmit={handleSubmit} className="w-[480px] max-w-full grid gap-[22px]">
           <UpdateBanner variant="login" />
-          <img src={theme === 'light' ? logo : logoEscura} alt="BSTECH" className="h-[30px] w-auto justify-self-start mb-3.5" />
+          <img src={theme === 'light' ? logo : logoEscura} alt="BSTECH" className="h-[38px] w-auto justify-self-start mb-4" />
           <div>
-            <h2 className="text-[28px] font-bold tracking-[-0.01em] m-0 mb-1">Entrar</h2>
-            <div className="text-bs-text-dim">Use o mesmo acesso da BSTECH web.</div>
+            <h2 className="text-[34px] font-bold tracking-[-0.01em] m-0 mb-1.5">Entrar</h2>
+            <div className="text-bs-text-dim text-[17px]">Use o mesmo acesso da BSTECH web.</div>
           </div>
           <label className="grid gap-[7px]">
-            <span className="text-[13px] text-bs-text-dim">E-mail</span>
+            <span className="text-[14.5px] text-bs-text-dim">E-mail</span>
             <input
               type="email"
               required
@@ -155,43 +155,43 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu e-mail da BSTECH"
-              className="h-[50px] rounded-[10px] border border-bs-line2 bg-bs-panel px-3.5 text-[15px] outline-none focus:border-bs-accent placeholder:text-bs-text-mute"
+              className="h-[58px] rounded-[12px] border border-bs-line2 bg-bs-panel px-4 text-[17px] outline-none focus:border-bs-accent placeholder:text-bs-text-mute"
             />
           </label>
           <label className="grid gap-[7px]">
-            <span className="text-[13px] text-bs-text-dim">Senha</span>
+            <span className="text-[14.5px] text-bs-text-dim">Senha</span>
             <input
               type="password"
               required
               autoFocus={!!email}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-[50px] rounded-[10px] border border-bs-line2 bg-bs-panel px-3.5 text-[15px] outline-none focus:border-bs-accent"
+              className="h-[58px] rounded-[12px] border border-bs-line2 bg-bs-panel px-4 text-[17px] outline-none focus:border-bs-accent"
             />
           </label>
-          <button type="button" onClick={() => setRemember((r) => !r)} className="flex gap-2.5 items-center text-bs-text-dim text-[13.5px] text-left">
-            <i className={`w-[18px] h-[18px] rounded-[5px] grid place-items-center ${remember ? 'bg-bs-accent' : 'border border-bs-line2'}`}>
-              {remember && <Check size={12} className="text-white" />}
+          <button type="button" onClick={() => setRemember((r) => !r)} className="flex gap-2.5 items-center text-bs-text-dim text-[15px] text-left">
+            <i className={`w-5 h-5 rounded-[6px] grid place-items-center ${remember ? 'bg-bs-accent' : 'border border-bs-line2'}`}>
+              {remember && <Check size={14} className="text-white" />}
             </i>
             Lembrar o e-mail neste computador
           </button>
 
           {blocked && (
-            <div className="rounded-[10px] px-[15px] py-[13px] text-[13.5px] leading-normal bg-bs-warning/15 text-bs-warning-text">
+            <div className="rounded-[12px] px-4 py-3.5 text-[14.5px] leading-normal bg-bs-warning/15 text-bs-warning-text">
               <b className="block mb-0.5">{BLOCK_TEXT[blocked].title}</b>
               {BLOCK_TEXT[blocked].body}
             </div>
           )}
-          {error && <div className="rounded-[10px] px-[15px] py-3 text-[13px] bg-bs-danger/15 text-bs-danger">{error}</div>}
+          {error && <div className="rounded-[12px] px-4 py-3 text-[14.5px] bg-bs-danger/15 text-bs-danger">{error}</div>}
 
           <button
             type="submit"
             disabled={loading}
-            className="h-[52px] rounded-[10px] w-full font-[650] text-[15px] bg-bs-accent text-white transition hover:brightness-110 disabled:opacity-50"
+            className="h-[60px] rounded-[12px] w-full font-[650] text-[17px] bg-bs-accent text-white transition hover:brightness-110 disabled:opacity-50"
           >
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
-          <div className="text-bs-text-mute text-[12.5px] text-center">Esqueceu a senha? Troca pela BSTECH web.</div>
+          <div className="text-bs-text-mute text-[14px] text-center">Esqueceu a senha? Troca pela BSTECH web.</div>
         </form>
       </div>
     </div>
