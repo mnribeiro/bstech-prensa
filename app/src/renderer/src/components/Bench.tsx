@@ -190,17 +190,7 @@ export function BenchSide({ onStart, onStop, onSeal, startBlocker }: SideProps) 
         </div>
       </div>
 
-      {!ruptured && (
-        <div className="px-5 py-[18px] border-b border-bs-border">
-          <div className="lbl">Dados do CP</div>
-          <div className="mt-2">
-            <Kv k="Dimensões" v={`${fmt(diameterOf(sp), 0)} x ${fmt(heightOf(sp), 0)} mm`} />
-            <Kv k="Fator de correção" v={fmt(correctionFactor(heightOf(sp), diameterOf(sp)), 2)} />
-            <Kv k="Moldado em" v={formatShortDate(sp.molding_date)} />
-            <Kv k="Vencimento" v={`${formatShortDate(sp.due_date)}${lateDays(sp, localIsoDate()) > 0 ? ' (atrasado)' : ''}`} />
-          </div>
-        </div>
-      )}
+      <FichaCP sp={sp} />
 
       <div className="mt-auto px-5 pt-4 pb-5 grid gap-2.5">
         {!ruptured && state.phase === 'idle' && (
@@ -255,11 +245,70 @@ function PairRow({ x, current, ruptured }: { x: Specimen; current: boolean; rupt
   )
 }
 
-function Kv({ k, v }: { k: string; v: string }) {
+function Kv({ k, v, warn = false }: { k: string; v: string; warn?: boolean }) {
   return (
-    <div className="flex justify-between gap-3 text-[13px] py-[5px] text-bs-text-dim">
-      <span>{k}</span>
-      <b className="text-bs-text font-medium text-right">{v}</b>
+    <div className="flex justify-between gap-3 text-[13px] py-[3px] text-bs-text-dim">
+      <span className="shrink-0">{k}</span>
+      <b className={`font-medium text-right truncate ${warn ? 'text-bs-warning-text' : 'text-bs-text'}`}>{v}</b>
+    </div>
+  )
+}
+
+function brDate(iso: string | null): string {
+  if (!iso) return 'n/d'
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
+}
+
+// Ficha do CP: tudo que o laudo leva desse CP, pra conferir antes de selar.
+// Fica sempre na coluna, antes e depois da ruptura.
+function FichaCP({ sp }: { sp: Specimen }) {
+  const { state } = useSession()
+  const { sealed, readings, ruptured } = useBench()
+  const d = diameterOf(sp)
+  const h = heightOf(sp)
+  const late = lateDays(sp, localIsoDate())
+  const eq = state.equipments.find((e) => e.id === state.equipmentId) ?? null
+  const rate = ruptured ? averageRate(readings, d) : state.phase === 'loading' ? liveRate(readings, d) : 0
+  const rateOut = rate > 0 && (rate < NBR_RATE.min || rate > NBR_RATE.max)
+  const operator = sealed ? sp.rupture_operator_name : state.operator?.name
+
+  return (
+    <div className="px-5 py-[16px] border-b border-bs-border">
+      <div className="lbl">Ficha do CP</div>
+      <FichaGroup title="Obra">
+        <Kv k="Obra" v={titleCase(sp.project_name)} />
+        <Kv k="Estrutura" v={titleCase(sp.structure_name)} />
+        <Kv k="Moldado por" v={sp.molder_name ?? 'n/d'} />
+      </FichaGroup>
+      <FichaGroup title="Concreto">
+        <Kv k="fck de projeto" v={sp.fck_spec_mpa != null ? `${fmt(sp.fck_spec_mpa, 0)} MPa` : 'n/d'} />
+        <Kv k="Fornecedor" v={sp.supplier_name ?? 'n/d'} />
+        <Kv k="Moldagem" v={brDate(sp.molding_date)} />
+      </FichaGroup>
+      <FichaGroup title="Corpo de prova">
+        <Kv k="Dimensões" v={`${fmt(d, 0)} x ${fmt(h, 0)} mm`} />
+        <Kv k="H/D · fator" v={`${fmt(h / d, 2)} · ${fmt(correctionFactor(h, d), 2)}`} />
+        <Kv
+          k="Idade"
+          v={`${sp.test_age_days} dias · ${late > 0 ? `${late} ${late === 1 ? 'dia' : 'dias'} de atraso` : 'vence hoje'}`}
+          warn={late > 0}
+        />
+      </FichaGroup>
+      <FichaGroup title="Ensaio">
+        {!sealed && <Kv k="Prensa" v={eq?.name ?? 'n/d'} />}
+        <Kv k={sealed ? 'Rompido por' : 'Operador'} v={operator ?? 'n/d'} />
+        <Kv k="Velocidade média" v={rate > 0 ? `${fmt(rate, 2)} MPa/s` : 'n/d'} warn={rateOut} />
+      </FichaGroup>
+    </div>
+  )
+}
+
+function FichaGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-3">
+      <div className="lbl text-[10.5px]">{title}</div>
+      <div className="mt-1">{children}</div>
     </div>
   )
 }
