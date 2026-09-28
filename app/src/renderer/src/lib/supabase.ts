@@ -179,3 +179,17 @@ export async function sealRupture(payload: SealRupturePayload): Promise<SealRupt
   if (error) throw error
   return data as SealRuptureResponse
 }
+
+// Etiqueta com QR (bipada no leitor USB): o banco diz de qual CP ela e e se
+// este login pode ver. Mesma funcao que a BSTECH web usa na tela /e/<token>.
+export interface LeituraEtiqueta {
+  label: { code: string; cancelled: boolean }
+  specimen: { id: string; code: string; status: string; due_date: string | null; rupture_date: string | null; deleted: boolean } | null
+}
+
+export async function lerEtiqueta(token: string): Promise<LeituraEtiqueta | null> {
+  const sb = await getClient()
+  const { data, error } = await sb.rpc('ler_etiqueta', { p_token: token })
+  if (error) throw error
+  return (data ?? null) as LeituraEtiqueta | null
+}

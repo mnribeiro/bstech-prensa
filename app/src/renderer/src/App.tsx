@@ -14,8 +14,10 @@ import {
   type Access,
   fetchSealedCurve,
   sealRupture,
-  localIsoDate
+  localIsoDate,
+  lerEtiqueta
 } from './lib/supabase'
+import { createScanDetector } from './lib/scanner'
 import { errorMessage } from './lib/error-message'
 import { runDemoSimulation, type DemoHandle } from './lib/demo-runner'
 import { displayOrder, isDone, lotOf, nextPending, splitPools } from './lib/queue'
@@ -299,6 +301,37 @@ function Inner() {
     },
     [state.phase, state.specimens, today, dispatch]
   )
+
+  // ---- Leitor USB: bipou a etiqueta, o CP abre na bancada ----
+  const ddmm = (d: string | null) => (d ? d.slice(0, 10).split('-').reverse().slice(0, 2).join('/') : 'n/d')
+  const tratarEtiqueta = async (token: string) => {
+    try {
+      const r = await lerEtiqueta(token)
+      const s = r?.specimen
+      if (!r) return dispatch({ type: 'toast', message: 'Etiqueta não encontrada' })
+      if (r.label.cancelled) return dispatch({ type: 'toast', message: `${r.label.code} foi cancelada` })
+      if (!s) return dispatch({ type: 'toast', message: `${r.label.code} ainda não virou CP. Lance o lote na BSTECH.` })
+      if (s.deleted) return dispatch({ type: 'toast', message: `${s.code} foi excluído do lote` })
+      if (state.phase === 'loading') return dispatch({ type: 'toast', message: 'Termine o ensaio antes de trocar de CP' })
+      if (state.specimens.some((x) => x.id === s.id)) {
+        selectSpecimen(s.id)
+        return
+      }
+      if (s.status.startsWith('RUPTURED')) return dispatch({ type: 'toast', message: `${s.code} já foi rompido em ${ddmm(s.rupture_date)}` })
+      dispatch({ type: 'toast', message: `${s.code} rompe em ${ddmm(s.due_date)}, fora da fila de hoje` })
+    } catch (err) {
+      dispatch({ type: 'toast', message: errorMessage(err) })
+    }
+  }
+  const scanRef = useRef(tratarEtiqueta)
+  scanRef.current = tratarEtiqueta
+  useEffect(() => {
+    const detectar = createScanDetector({ onScan: (t) => void scanRef.current(t) })
+    // Fase de captura: o Enter do leitor nao pode clicar no botao que estiver em foco.
+    const onKey = (e: KeyboardEvent) => detectar(e)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
 
   const pickEquipment = useCallback(
     async (id: string) => {
