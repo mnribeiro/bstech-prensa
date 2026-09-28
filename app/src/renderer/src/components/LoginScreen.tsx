@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Lock, Moon, Sun } from 'lucide-react'
 import { getClient } from '../lib/supabase'
 import { errorMessage } from '../lib/error-message'
@@ -32,6 +32,13 @@ const BLOCK_TEXT: Record<BlockReason, { title: string; body: string }> = {
 
 const REMEMBER_KEY = 'bstech-prensa-email'
 
+/* O bloco de login foi desenhado pra coluna de 604px (janela padrao de 1480px).
+   Em janela maior ele cresce junto com a coluna, na mesma proporcao do login da
+   BSTECH web, sem alargar a area branca */
+const COLUNA_BASE = 604
+const ESCALA_MIN = 0.85
+const ESCALA_MAX = 1.6
+
 interface Props {
   /** Resolve o acesso do login; devolve o motivo quando esse login nao pode romper */
   onLogged: () => Promise<BlockReason | null>
@@ -61,6 +68,19 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
   const [error, setError] = useState<string | null>(null)
   const [blocked, setBlocked] = useState<BlockReason | null>(null)
   const version = useAppVersion()
+  const colunaRef = useRef<HTMLDivElement>(null)
+  const [escala, setEscala] = useState(1)
+
+  useEffect(() => {
+    const el = colunaRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width
+      setEscala(Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, w / COLUNA_BASE)))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     try {
@@ -93,7 +113,7 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
   }
 
   return (
-    <div className="h-full grid grid-cols-[1.3fr_1fr] bg-bs-bg">
+    <div className="h-full grid grid-cols-[1.45fr_1fr] bg-bs-bg">
       {/* Lado da imagem: foto da prensa como fundo da coluna inteira, texto por cima
           no degrade de baixo. Fica escuro nos dois temas */}
       <div className="relative overflow-hidden bg-[#0a0a0a] text-[#ececec]">
@@ -135,11 +155,11 @@ export function LoginScreen({ onLogged, equipment, pressConnected, liveKgf }: Pr
         </div>
       </div>
 
-      <div className="relative grid place-items-center p-10">
+      <div ref={colunaRef} className="relative grid place-items-center p-10">
         <button className="icon-btn absolute top-5 right-5" title={theme === 'light' ? 'Tema escuro' : 'Tema claro'} onClick={toggle}>
           {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
         </button>
-        <form onSubmit={handleSubmit} className="w-[480px] max-w-full grid gap-[22px]">
+        <form onSubmit={handleSubmit} style={{ zoom: escala }} className="w-[480px] max-w-full grid gap-[22px]">
           <UpdateBanner variant="login" />
           <img src={theme === 'light' ? logo : logoEscura} alt="BSTECH" className="h-[38px] w-auto justify-self-start mb-4" />
           <div>
