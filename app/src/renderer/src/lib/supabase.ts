@@ -21,7 +21,27 @@ export async function getClient(): Promise<SupabaseClient> {
   return _client
 }
 
+// Laboratorio de quem esta logado (perfil, ou o operador ligado ao login).
+// O client_id do instalador e o da BSTECH e so vale como ultimo recurso:
+// usar ele listava as prensas da BSTECH em vez das do laboratorio do cliente.
+let clientIdCache: { userId: string; clientId: string } | null = null
+
 export async function getClientId(): Promise<string> {
+  const sb = await getClient()
+  const { data: auth } = await sb.auth.getUser()
+  const userId = auth.user?.id
+  if (userId) {
+    if (clientIdCache?.userId === userId) return clientIdCache.clientId
+    const [{ data: profile }, { data: op }] = await Promise.all([
+      sb.from('user_profiles').select('client_id').eq('id', userId).maybeSingle(),
+      sb.from('operators').select('client_id').eq('user_id', userId).limit(1)
+    ])
+    const clientId = profile?.client_id ?? op?.[0]?.client_id ?? null
+    if (clientId) {
+      clientIdCache = { userId, clientId }
+      return clientId
+    }
+  }
   const cfg = await window.bstech.app.getConfig()
   return cfg.client_id
 }
