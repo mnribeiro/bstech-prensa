@@ -8,7 +8,7 @@
 //   state   -> PressLiveState snapshot
 //   rupture -> quando detector identifica queda > threshold
 //
-// Detector de ruptura: olha drop entre amostras consecutivas filtradas (rolling avg de 3).
+// Detector de ruptura: queda brusca perto do pico (ver isRupture).
 
 import { EventEmitter } from 'node:events'
 import type { PressConfig, PressReading, PressLiveState } from '../shared/types'
@@ -26,6 +26,7 @@ export class PressDriver extends EventEmitter {
   private modbusClient: any = null // ModbusRTU lazy import
   private connectInFlight: Promise<{ ok: boolean; error?: string }> | null = null
   private pollHandle: NodeJS.Timeout | null = null
+  private pollBusy = false
   private idleHandle: NodeJS.Timeout | null = null
   private sessionStartedAt: number | null = null
   private readings: PressReading[] = []
@@ -347,12 +348,18 @@ export class PressDriver extends EventEmitter {
   }
 
   private async poll() {
+    // Indicador responde um pedido por vez: sem essa trava, uma resposta lenta
+    // empilhava leituras na porta serial
+    if (this.pollBusy) return
+    this.pollBusy = true
     try {
       const kgf = this.mode === 'mock' ? this.readMock() : await this.readModbus()
       if (kgf === null) return
       this.handleSample(kgf)
     } catch (err) {
       this.emit('error', err instanceof Error ? err : new Error(String(err)))
+    } finally {
+      this.pollBusy = false
     }
   }
 
@@ -410,22 +417,36 @@ export class PressDriver extends EventEmitter {
     this.emit('reading', sample)
     this.emitState()
 
-    // Detector de ruptura: drop > threshold com peak ja > 1000 kgf
-    if (!this.ruptureDetected && this.peakKgf > 1000 && this.lastSamples.length >= 3) {
-      const recent = this.lastSamples[this.lastSamples.length - 1]
-      const drop = this.peakKgf - recent
-      if (drop > this.config.rupture_drop_threshold_kgf) {
-        this.ruptureDetected = true
-        this.ruptureAt = t
-        this.emit('rupture')
-        this.emitState()
-      }
+    if (!this.ruptureDetected && isRupture(this.readings, this.peakKgf, this.config.rupture_drop_threshold_kgf)) {
+      this.ruptureDetected = true
+      this.ruptureAt = t
+      this.emit('rupture')
+      this.emitState()
     }
   }
 
   private emitState() {
     this.emit('state', this.getLiveState())
   }
+}
+
+// Ruptura de CP e queda brusca: na Raitz (29/09) a carga caiu de 34 para 13 tf em
+// 1,5 s. Alivio de pressao cai devagar (uns 200 kgf a cada leitura do indicador) e
+// antes disparava ruptura falsa so por acumular 800 kgf abaixo do pico.
+const RUPTURE_WINDOW_MS = 1200
+const RUPTURE_FAST_DROP = 0.08 // fracao do pico que precisa cair dentro da janela
+const RUPTURE_COLLAPSE = 0.5 // caiu pra menos da metade do pico: rompeu, em qualquer ritmo
+
+export function isRupture(readings: { t: number; kgf: number }[], peakKgf: number, thresholdKgf: number): boolean {
+  if (peakKgf <= 1000 || readings.length < 3) return false
+  const last = readings[readings.length - 1]
+  if (last.kgf < peakKgf * RUPTURE_COLLAPSE) return true
+  let windowMax = last.kgf
+  for (let i = readings.length - 2; i >= 0 && last.t - readings[i].t <= RUPTURE_WINDOW_MS; i--) {
+    if (readings[i].kgf > windowMax) windowMax = readings[i].kgf
+  }
+  const fastDrop = windowMax - last.kgf
+  return windowMax >= peakKgf * 0.9 && fastDrop > Math.max(thresholdKgf, peakKgf * RUPTURE_FAST_DROP)
 }
 
 interface PortInfoLike {

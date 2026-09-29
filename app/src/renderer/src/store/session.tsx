@@ -114,6 +114,7 @@ type Action =
   | { type: 'press_rupture' }
   | { type: 'phase'; phase: Phase }
   | { type: 'reset_session' }
+  | { type: 'restore_pending'; readings: PressReading[]; sessionStartedAt: number | null; ruptureType: RuptureType | null }
   | { type: 'set_rupture_type'; value: RuptureType }
   | { type: 'seal_start' }
   | { type: 'seal_error'; message: string }
@@ -172,6 +173,15 @@ function reducer(state: SessionState, a: Action): SessionState {
       return { ...state, phase: a.phase }
     case 'reset_session':
       return { ...state, ...cleanBench(state) }
+    case 'restore_pending':
+      return {
+        ...state,
+        ...cleanBench(state),
+        readings: a.readings,
+        phase: 'ruptured',
+        ruptureType: a.ruptureType,
+        press: { ...clearedPress(state.press), session_started_at: a.sessionStartedAt }
+      }
     case 'set_rupture_type':
       return { ...state, ruptureType: a.value }
     case 'seal_start':

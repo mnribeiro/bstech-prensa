@@ -180,7 +180,67 @@ export async function fetchSealedCurve(specimenId: string): Promise<PressReading
   return Array.isArray(r) ? (r as PressReading[]) : null
 }
 
+// Selo com limite de espera: sem isso, uma resposta que nunca volta (erro 520 do
+// servidor com o banco lento) deixava o app em "Selando" pra sempre e o resultado
+// se perdia. Antes de reenviar, confere se a tentativa anterior chegou a gravar.
+const SEAL_TIMEOUT_MS = 20000
+const SEAL_TENTATIVAS = 3
+
 export async function sealRupture(payload: SealRupturePayload): Promise<SealRuptureResponse> {
+  let ultimoErro: unknown = null
+  for (let i = 0; i < SEAL_TENTATIVAS; i++) {
+    if (i > 0) {
+      const jaGravado = await buscarSelo(payload.specimen_id).catch(() => null)
+      if (jaGravado) return jaGravado
+      await new Promise((r) => setTimeout(r, 1500 * i))
+    }
+    try {
+      return await sealRuptureOnce(payload)
+    } catch (err) {
+      ultimoErro = err
+      console.warn(`[seal_rupture] tentativa ${i + 1} falhou`, err)
+    }
+  }
+  const jaGravado = await buscarSelo(payload.specimen_id).catch(() => null)
+  if (jaGravado) return jaGravado
+  throw ultimoErro instanceof Error
+    ? ultimoErro
+    : new Error('A BSTECH nao respondeu. O resultado continua na tela, tente selar de novo.')
+}
+
+async function buscarSelo(specimenId: string): Promise<SealRuptureResponse | null> {
+  const sb = await getClient()
+  const { data, error } = await sb
+    .from('rupture_readings')
+    .select('id, specimen_id, peak_load_kgf, peak_load_ton, reading_count, hash_sha256, sealed_at')
+    .eq('specimen_id', specimenId)
+    .not('sealed_at', 'is', null)
+    .order('sealed_at', { ascending: false })
+    .limit(1)
+    .abortSignal(AbortSignal.timeout(SEAL_TIMEOUT_MS))
+  if (error) throw error
+  const r = data?.[0]
+  if (!r) return null
+  const { data: sp } = await sb
+    .from('specimens')
+    .select('status, calculated_fck_mpa')
+    .eq('id', specimenId)
+    .maybeSingle()
+  return {
+    success: true,
+    specimen_id: r.specimen_id,
+    rupture_reading_id: r.id,
+    peak_load_kgf: Number(r.peak_load_kgf),
+    peak_load_ton: Number(r.peak_load_ton),
+    calculated_fck_mpa: Number(sp?.calculated_fck_mpa ?? 0),
+    reading_count: r.reading_count,
+    hash_sha256: r.hash_sha256 ?? '',
+    sealed_at: r.sealed_at,
+    status: sp?.status
+  } as SealRuptureResponse
+}
+
+async function sealRuptureOnce(payload: SealRupturePayload): Promise<SealRuptureResponse> {
   const sb = await getClient()
   const { data, error } = await sb.rpc('seal_rupture', {
     p_specimen_id: payload.specimen_id,
@@ -195,7 +255,7 @@ export async function sealRupture(payload: SealRupturePayload): Promise<SealRupt
     p_status_override: payload.status_override ?? null,
     p_diameter_mm: payload.diameter_mm ?? null,
     p_height_mm: payload.height_mm ?? null
-  })
+  }).abortSignal(AbortSignal.timeout(SEAL_TIMEOUT_MS))
   if (error) throw error
   return data as SealRuptureResponse
 }

@@ -1,6 +1,6 @@
 // Bancada de ruptura: centro (CP, grafico, numeros ao vivo) e coluna da direita
 // (o par do lote, dados do CP, iniciar/parar e o resultado com o selo).
-import { Check, Lock, Play, Square } from 'lucide-react'
+import { Check, Lock, Play, Square, Zap } from 'lucide-react'
 import type { PressReading, RuptureType, Specimen } from '@shared/types'
 import { useSession } from '../store/session'
 import { localIsoDate } from '../lib/supabase'
@@ -169,11 +169,12 @@ function Readout({ k, v, unit, sub, tone }: { k: string; v: string; unit?: strin
 interface SideProps {
   onStart: () => void
   onStop: () => void
+  onRupture: () => void
   onSeal: () => void
   startBlocker: string | null
 }
 
-export function BenchSide({ onStart, onStop, onSeal, startBlocker }: SideProps) {
+export function BenchSide({ onStart, onStop, onRupture, onSeal, startBlocker }: SideProps) {
   const { state } = useSession()
   const { sp, ruptured } = useBench()
   if (!sp) return <aside className="border-l border-bs-border bg-bs-surface" />
@@ -207,13 +208,20 @@ export function BenchSide({ onStart, onStop, onSeal, startBlocker }: SideProps) 
         )}
         {!ruptured && state.phase === 'loading' && (
           <>
+            <div className="text-xs text-bs-text-mute text-center">A ruptura é detectada sozinha. Se a carga parou e o CP rompeu, registre o pico.</div>
+            <button
+              onClick={onRupture}
+              className="h-[52px] rounded-[10px] w-full font-[650] text-[15px] flex items-center justify-center gap-2.5 bg-bs-accent text-white transition hover:brightness-110 active:scale-[0.985]"
+            >
+              <Zap size={18} fill="currentColor" /> Rompeu, registrar pico{' '}
+              <span className="text-[11px] px-1.5 py-px rounded bg-white/15 font-semibold">Espaço</span>
+            </button>
             <button
               onClick={onStop}
-              className="h-[52px] rounded-[10px] w-full font-[650] text-[15px] flex items-center justify-center gap-2.5 bg-bs-warning text-bs-on-color transition active:scale-[0.985]"
+              className="h-9 rounded-[10px] w-full text-[13px] font-medium flex items-center justify-center gap-2 text-bs-text-dim hover:text-bs-warning-text hover:bg-bs-panel transition"
             >
-              <Square size={18} fill="currentColor" /> Parar sem ruptura
+              <Square size={13} fill="currentColor" /> Parar sem ruptura (descarta o ensaio)
             </button>
-            <div className="text-xs text-bs-text-mute text-center">A ruptura é detectada sozinha</div>
           </>
         )}
         {ruptured && <ResultBlock onSeal={onSeal} />}

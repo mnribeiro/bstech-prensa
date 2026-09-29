@@ -18,6 +18,8 @@ import {
   lerEtiqueta
 } from './lib/supabase'
 import { createScanDetector } from './lib/scanner'
+import { apagarPendente, guardarPendente, lerPendente } from './lib/pendente'
+import { useColumnWidths } from './hooks/useColumnWidths'
 import { errorMessage } from './lib/error-message'
 import { runDemoSimulation, type DemoHandle } from './lib/demo-runner'
 import { displayOrder, isDone, lotOf, nextPending, splitPools } from './lib/queue'
@@ -46,8 +48,36 @@ function saveEquipment(eq: LabEquipment | null) {
 // Depois da ruptura a leitura continua um pouco pra curva mostrar a queda inteira
 const AFTER_RUPTURE_MS = 1500
 
+// Alca entre colunas: arrasta pra redimensionar, duplo clique volta ao padrao
+function ColumnHandle({
+  style,
+  active,
+  onPointerDown,
+  onDoubleClick
+}: {
+  style: React.CSSProperties
+  active: boolean
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void
+  onDoubleClick: () => void
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      title="Arraste pra ajustar a largura (duplo clique volta ao padrão)"
+      onPointerDown={onPointerDown}
+      onDoubleClick={onDoubleClick}
+      style={style}
+      className="group absolute inset-y-0 z-20 w-2 cursor-col-resize flex justify-center"
+    >
+      <span className={`w-[2px] h-full transition-colors ${active ? 'bg-bs-accent' : 'bg-transparent group-hover:bg-bs-accent/50'}`} />
+    </div>
+  )
+}
+
 function Inner() {
   const { state, dispatch } = useSession()
+  const cols = useColumnWidths()
   const demoHandleRef = useRef<DemoHandle | null>(null)
   const afterRuptureRef = useRef<NodeJS.Timeout | null>(null)
   const toastRef = useRef<NodeJS.Timeout | null>(null)
@@ -119,6 +149,25 @@ function Inner() {
       }
     })
   }, [sp?.id, state.specimens, state.curves, dispatch])
+
+  // ---- Rompido e ainda nao selado: guarda no computador ate selar ----
+  useEffect(() => {
+    if (state.demoMode || state.phase !== 'ruptured' || !sp || isDone(sp) || !state.readings.length) return
+    guardarPendente(sp.id, {
+      readings: state.readings,
+      sessionStartedAt: state.press.session_started_at,
+      ruptureType: state.ruptureType
+    })
+  }, [state.demoMode, state.phase, state.readings, state.ruptureType, state.press.session_started_at, sp])
+
+  // Voltou num CP que rompeu e nao selou (troca de CP, app reaberto): traz a curva de volta
+  useEffect(() => {
+    if (!sp || state.phase !== 'idle' || state.readings.length) return
+    if (isDone(sp)) return apagarPendente(sp.id)
+    const p = lerPendente(sp.id)
+    if (p) dispatch({ type: 'restore_pending', readings: p.readings, sessionStartedAt: p.sessionStartedAt, ruptureType: p.ruptureType })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp?.id])
 
   // ---- IPC subscribers ----
   useEffect(() => {
@@ -220,6 +269,19 @@ function Inner() {
     dispatch({ type: 'reset_session' })
   }, [dispatch])
 
+  // Rompeu e o detector nao pegou (carga parada no topo): o operador registra o pico
+  const handleManualRupture = useCallback(async () => {
+    if (state.phase !== 'loading') return
+    const pk = peakPoint(state.readings)
+    if (!pk || pk.kgf < 1000) {
+      dispatch({ type: 'toast', message: 'A carga ainda não subiu. Sem pico pra registrar.' })
+      return
+    }
+    demoHandleRef.current?.stop()
+    if (!state.demoMode) await window.bstech.press.stopSession()
+    dispatch({ type: 'press_rupture' })
+  }, [state.phase, state.readings, state.demoMode, dispatch])
+
   const handleSeal = useCallback(async () => {
     if (!sp || !state.operator || !state.ruptureType || state.sealing) return
     const pk = peakPoint(state.readings)
@@ -246,6 +308,7 @@ function Inner() {
         height_mm: h
       }
       const res = await sealRupture(payload)
+      apagarPendente(sp.id)
       const calc = res.calculated_fck_mpa ?? calcFckMpa(pk.kgf, d)
       const sealedSp: Specimen = {
         ...sp,
@@ -276,7 +339,7 @@ function Inner() {
     }
   }, [sp, state.operator, state.ruptureType, state.sealing, state.readings, state.equipmentId, state.press.session_started_at, state.specimens, dispatch])
 
-  // Espaco inicia e para o ensaio (fora de campo de texto)
+  // Espaco inicia o ensaio; durante o ensaio registra a ruptura (nunca descarta o ensaio)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.code !== 'Space' || calibration) return
@@ -284,11 +347,11 @@ function Inner() {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       e.preventDefault()
       if (state.phase === 'idle') void handleStart()
-      else if (state.phase === 'loading') void handleStop()
+      else if (state.phase === 'loading') void handleManualRupture()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [state.phase, handleStart, handleStop, calibration])
+  }, [state.phase, handleStart, handleManualRupture, calibration])
 
   const selectSpecimen = useCallback(
     (id: string) => {
@@ -350,14 +413,36 @@ function Inner() {
         <CalibrationView />
       ) : (
         <div
-          className="flex-1 grid min-h-0 transition-[grid-template-columns] duration-[260ms] ease-[cubic-bezier(0.23,1,0.32,1)]"
-          style={{ gridTemplateColumns: `${state.queueCollapsed ? '64px' : '380px'} 1fr 400px` }}
+          className={`relative flex-1 grid min-h-0 ${cols.dragging ? '' : 'transition-[grid-template-columns] duration-[260ms] ease-[cubic-bezier(0.23,1,0.32,1)]'}`}
+          style={{
+            gridTemplateColumns: `${state.queueCollapsed ? 64 : cols.widths.left}px minmax(0, 1fr) ${cols.widths.right}px`
+          }}
         >
           <div className="border-r border-bs-border min-h-0 min-w-0 overflow-hidden">
             {state.queueCollapsed ? <QueueRail /> : <Queue onSelect={selectSpecimen} />}
           </div>
+          {!state.queueCollapsed && (
+            <ColumnHandle
+              style={{ left: cols.widths.left - 4 }}
+              active={cols.dragging === 'left'}
+              onPointerDown={(e) => cols.begin('left', e)}
+              onDoubleClick={() => cols.reset('left')}
+            />
+          )}
+          <ColumnHandle
+            style={{ right: cols.widths.right - 4 }}
+            active={cols.dragging === 'right'}
+            onPointerDown={(e) => cols.begin('right', e)}
+            onDoubleClick={() => cols.reset('right')}
+          />
           <BenchCenter />
-          <BenchSide onStart={handleStart} onStop={handleStop} onSeal={handleSeal} startBlocker={startBlocker} />
+          <BenchSide
+            onStart={handleStart}
+            onStop={handleStop}
+            onRupture={handleManualRupture}
+            onSeal={handleSeal}
+            startBlocker={startBlocker}
+          />
         </div>
       )}
 
