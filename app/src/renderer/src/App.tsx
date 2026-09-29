@@ -400,17 +400,11 @@ function AuthGate() {
   const [auth, setAuth] = useState<Auth>({ phase: 'loading' })
   const [press, setPress] = useState<PressLiveState | null>(null)
 
-  // Conecta a prensa ja na entrada (mostra a leitura ao vivo antes do login)
+  // A prensa conecta sozinha no processo principal (acha a porta e reconecta);
+  // aqui so acompanha o estado, que ja aparece antes do login
   useEffect(() => {
     ;(async () => {
       try {
-        const cfg = await window.bstech.press.getConfig()
-        const ports = await window.bstech.press.listPorts()
-        const port = ports.find((p) => p.path === cfg.port)?.path ?? ports[0]?.path
-        if (port) {
-          const r = await window.bstech.press.connect(port)
-          if (!r.ok && r.error) console.warn('[press connect]', r.error)
-        }
         const s = await window.bstech.press.getState()
         if (s) setPress(s)
       } catch (err) {

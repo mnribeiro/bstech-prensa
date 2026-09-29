@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
+import { appendFileSync } from 'node:fs'
 import { IPC } from '../shared/ipc'
 import { PressDriver } from './press-driver'
 import { loadConfig, patchPress, patchApp } from './config-store'
@@ -55,13 +56,32 @@ async function setupPress() {
   // Em produção (empacotado) o default é modbus; quem instala o app tá com hardware.
   // Em dev sem env var, default é mock pra UI funcionar sem prensa.
   press = new PressDriver(cfg.press, {
-    defaultMode: app.isPackaged ? 'modbus' : 'mock'
+    defaultMode: app.isPackaged ? 'modbus' : 'mock',
+    log: pressLog
   })
 
   press.on('reading', (r) => mainWindow?.webContents.send(IPC.PRESS_READING, r))
   press.on('state', (s) => mainWindow?.webContents.send(IPC.PRESS_STATE, s))
   press.on('rupture', () => mainWindow?.webContents.send(IPC.PRESS_RUPTURE))
   press.on('error', (err) => console.error('[press]', err))
+
+  // Acha a prensa sozinho e reconecta se o cabo sair; a porta que respondeu fica salva
+  pressLog(`app ${app.getVersion()} iniciando, porta salva ${cfg.press.port}`)
+  press.startAutoConnect((port) => {
+    if (port !== 'MOCK' && port !== cfg.press.port) void patchPress({ port })
+  })
+}
+
+// Log da conexao com a prensa em %APPDATA%/bstech-prensa/prensa.log,
+// pra dar pra pedir o arquivo ao laboratorio quando nao conecta.
+function pressLog(msg: string) {
+  const line = `${new Date().toISOString()} ${msg}`
+  console.log('[press]', line)
+  try {
+    appendFileSync(join(app.getPath('userData'), 'prensa.log'), line + '\n', 'utf-8')
+  } catch {
+    // log e best-effort
+  }
 }
 
 function registerIpc() {
@@ -145,6 +165,7 @@ app.on('before-quit', async (e) => {
   if (!press) return
   isCleaningUp = true
   e.preventDefault()
+  press.stopAutoConnect()
   try {
     await press.disconnect()
   } catch (err) {

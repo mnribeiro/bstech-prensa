@@ -40,10 +40,20 @@ export class PressDriver extends EventEmitter {
   private mockTickMs = 0
   private mockPhase: 'idle' | 'loading' | 'ruptured' = 'idle'
   private mockPeakTarget = 0
+  // Reconexao automatica: procura a porta sozinho e tenta de novo se o cabo sair
+  private autoHandle: NodeJS.Timeout | null = null
+  private autoBusy = false
+  private readFailures = 0
+  private lastAutoHint = ''
+  private log: (msg: string) => void
 
-  constructor(config: PressConfig, opts?: { defaultMode?: 'mock' | 'modbus' }) {
+  constructor(
+    config: PressConfig,
+    opts?: { defaultMode?: 'mock' | 'modbus'; log?: (msg: string) => void }
+  ) {
     super()
     this.config = config
+    this.log = opts?.log ?? ((msg) => console.log('[press]', msg))
     // Prioridade: env var explícita > default passado > 'mock'
     const envMode = process.env.BSTECH_PRESS_MODE
     if (envMode === 'modbus' || envMode === 'mock') {
@@ -89,6 +99,13 @@ export class PressDriver extends EventEmitter {
         await this.modbusClient.connectRTUBuffered(port, { baudRate: this.config.baud_rate })
         this.modbusClient.setID(this.config.modbus_address)
         this.modbusClient.setTimeout(500)
+        // Porta aberta nao quer dizer prensa: so conta como conectada se o indicador responder
+        try {
+          await this.readModbus()
+        } catch {
+          await this.readModbus()
+        }
+        this.readFailures = 0
         this.connected = true
         this.currentPort = port
         this.startIdlePolling()
@@ -96,7 +113,8 @@ export class PressDriver extends EventEmitter {
         return { ok: true }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        console.error('[press] connect failed:', msg)
+        this.log(`connect ${port} falhou: ${msg}`)
+        await this.closeClient()
         return { ok: false, error: msg }
       } finally {
         this.connectInFlight = null
@@ -105,13 +123,86 @@ export class PressDriver extends EventEmitter {
     return this.connectInFlight
   }
 
+  private async closeClient(): Promise<void> {
+    const client = this.modbusClient
+    this.modbusClient = null
+    if (client && client.isOpen) {
+      await new Promise<void>((res) => client.close(() => res()))
+    }
+  }
+
+  /**
+   * Procura a prensa sozinho e fica tentando a cada poucos segundos enquanto
+   * estiver desconectada (cabo plugado depois de abrir o app, cabo que saiu).
+   * Ordem: porta salva, depois adaptadores USB-serial, depois o resto.
+   * Bluetooth fica de fora. onFound recebe a porta que respondeu, pra salvar.
+   */
+  startAutoConnect(onFound?: (port: string) => void, everyMs = 5000) {
+    if (this.autoHandle) return
+    const tick = async () => {
+      if (this.connected || this.autoBusy) return
+      this.autoBusy = true
+      try {
+        const port = await this.autoConnectOnce()
+        if (port) onFound?.(port)
+      } finally {
+        this.autoBusy = false
+      }
+    }
+    void tick()
+    this.autoHandle = setInterval(tick, everyMs)
+  }
+
+  stopAutoConnect() {
+    if (this.autoHandle) {
+      clearInterval(this.autoHandle)
+      this.autoHandle = null
+    }
+  }
+
+  private async autoConnectOnce(): Promise<string | null> {
+    if (this.mode === 'mock') {
+      const r = await this.connect('MOCK')
+      return r.ok ? 'MOCK' : null
+    }
+    const { SerialPort } = await import('serialport')
+    const all = await SerialPort.list()
+    const candidates = rankPorts(all, this.config.port)
+    if (!candidates.length) {
+      this.hint(
+        all.length
+          ? `nenhuma porta USB-serial (portas vistas: ${all.map((p) => p.path).join(', ')})`
+          : 'nenhuma porta COM no Windows: cabo desplugado ou driver do adaptador faltando'
+      )
+      return null
+    }
+    const erros: string[] = []
+    for (const p of candidates) {
+      const r = await this.connect(p.path)
+      if (r.ok) {
+        this.lastAutoHint = ''
+        this.log(`conectada em ${p.path} (${p.manufacturer ?? 'fabricante n/d'})`)
+        return p.path
+      }
+      erros.push(`${p.path}: ${r.error ?? 'sem resposta'}`)
+    }
+    this.hint(
+      `portas abertas mas o indicador nao respondeu (${this.config.baud_rate} baud, endereco ${this.config.modbus_address}): ${erros.join('; ')}`
+    )
+    return null
+  }
+
+  // Loga so quando o motivo muda, pra nao encher o arquivo a cada 5s
+  private hint(msg: string) {
+    if (msg === this.lastAutoHint) return
+    this.lastAutoHint = msg
+    this.log(msg)
+  }
+
   async disconnect(): Promise<void> {
     this.stopSession()
     this.stopIdlePolling()
-    if (this.modbusClient && this.modbusClient.isOpen) {
-      await new Promise<void>((res) => this.modbusClient.close(() => res()))
-    }
-    this.modbusClient = null
+    await this.closeClient()
     this.connected = false
     this.currentPort = null
     this.emitState()
@@ -233,10 +324,17 @@ export class PressDriver extends EventEmitter {
       try {
         const kgf = this.mode === 'mock' ? 0 : await this.readModbus()
         if (kgf === null) return
+        this.readFailures = 0
         this.lastSamples = [kgf]
         this.emitState()
       } catch (err) {
         this.emit('error', err instanceof Error ? err : new Error(String(err)))
+        // ~2s sem resposta fora de ensaio: cabo saiu ou prensa desligou
+        if (++this.readFailures >= 10 && !this.pollHandle) {
+          this.log(`sem resposta em ${this.currentPort}, desconectando pra procurar de novo`)
+          this.readFailures = 0
+          void this.disconnect()
+        }
       }
     }, intervalMs)
   }
@@ -328,4 +426,30 @@ export class PressDriver extends EventEmitter {
   private emitState() {
     this.emit('state', this.getLiveState())
   }
+}
+
+interface PortInfoLike {
+  path: string
+  manufacturer?: string
+  pnpId?: string
+  vendorId?: string
+}
+
+// Chips comuns de adaptador USB-RS485 (FTDI, CH340, Prolific, CP210x) ou qualquer USB
+const USB_SERIAL = /ftdi|wch|ch34|prolific|silicon labs|cp210|usb/i
+const BLUETOOTH = /bthenum|bluetooth/i
+
+export function rankPorts<T extends PortInfoLike>(ports: T[], saved?: string): T[] {
+  const score = (p: T) => {
+    const text = `${p.manufacturer ?? ''} ${p.pnpId ?? ''}`
+    if (BLUETOOTH.test(text)) return -1
+    if (saved && p.path === saved) return 0
+    if (p.vendorId || USB_SERIAL.test(text)) return 1
+    return 2 // porta da placa-mae (COM1): tenta por ultimo
+  }
+  return ports
+    .map((p) => ({ p, s: score(p) }))
+    .filter((x) => x.s >= 0)
+    .sort((a, b) => a.s - b.s)
+    .map((x) => x.p)
 }
