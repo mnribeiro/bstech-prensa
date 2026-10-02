@@ -185,10 +185,15 @@ function Inner() {
       if (afterRuptureRef.current) clearTimeout(afterRuptureRef.current)
       afterRuptureRef.current = setTimeout(() => void window.bstech.press.stopSession(), AFTER_RUPTURE_MS)
     })
+    const offWarning = window.bstech.press.onWarning((message) => {
+      if (demoModeRef.current) return
+      dispatch({ type: 'toast', message })
+    })
     return () => {
       offState()
       offReading()
       offRupture()
+      offWarning()
       if (afterRuptureRef.current) clearTimeout(afterRuptureRef.current)
     }
   }, [dispatch])

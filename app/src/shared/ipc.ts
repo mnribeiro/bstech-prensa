@@ -16,6 +16,7 @@ export const IPC = {
   PRESS_READING: 'press:reading', // PressReading individual
   PRESS_STATE: 'press:state', // PressLiveState snapshot
   PRESS_RUPTURE: 'press:rupture', // dispara quando ruptura detectada
+  PRESS_WARNING: 'press:warning', // aviso pro operador (porta caiu, erro recuperado)
 
   // Config app
   APP_GET_CONFIG: 'app:get-config',
@@ -54,6 +55,7 @@ export interface ElectronAPI {
     onReading: (cb: (r: import('./types').PressReading) => void) => () => void
     onState: (cb: (s: import('./types').PressLiveState) => void) => () => void
     onRupture: (cb: () => void) => () => void
+    onWarning: (cb: (message: string) => void) => () => void
   }
   app: {
     getConfig: () => Promise<import('./types').AppConfig>

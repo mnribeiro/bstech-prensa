@@ -64,6 +64,13 @@ async function setupPress() {
   press.on('state', (s) => mainWindow?.webContents.send(IPC.PRESS_STATE, s))
   press.on('rupture', () => mainWindow?.webContents.send(IPC.PRESS_RUPTURE))
   press.on('error', (err) => console.error('[press]', err))
+  press.on('lost', ({ inSession }) =>
+    warn(
+      inSession
+        ? 'A prensa desconectou no meio do ensaio. A curva até aqui ficou guardada: se o CP rompeu, registre o pico e sele. O app está reconectando sozinho.'
+        : 'A prensa desconectou (cabo USB ou caixinha do indicador). O app está reconectando sozinho.'
+    )
+  )
 
   // Acha a prensa sozinho e reconecta se o cabo sair; a porta que respondeu fica salva
   pressLog(`app ${app.getVersion()} iniciando, porta salva ${cfg.press.port}`)
@@ -83,6 +90,20 @@ function pressLog(msg: string) {
     // log e best-effort
   }
 }
+
+function warn(message: string) {
+  mainWindow?.webContents.send(IPC.PRESS_WARNING, message)
+}
+
+// Rede de seguranca: erro que escapar (porta serial, rede) vira linha no log e aviso
+// na tela, em vez da caixa "A JavaScript error occurred in the main process".
+process.on('uncaughtException', (err) => {
+  pressLog(`erro nao tratado: ${err?.stack ?? String(err)}`)
+  warn('Algo falhou na comunicação com a prensa. O app continua aberto e tenta de novo sozinho.')
+})
+process.on('unhandledRejection', (reason) => {
+  pressLog(`promessa rejeitada sem tratamento: ${reason instanceof Error ? reason.stack : String(reason)}`)
+})
 
 function registerIpc() {
   ipcMain.handle(IPC.PRESS_LIST_PORTS, async () => press?.listPorts() ?? [])

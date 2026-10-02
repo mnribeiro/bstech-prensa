@@ -30,6 +30,11 @@ const api: ElectronAPI = {
       const handler = () => cb()
       ipcRenderer.on(IPC.PRESS_RUPTURE, handler)
       return () => ipcRenderer.off(IPC.PRESS_RUPTURE, handler)
+    },
+    onWarning: (cb) => {
+      const handler = (_e: any, message: string) => cb(message)
+      ipcRenderer.on(IPC.PRESS_WARNING, handler)
+      return () => ipcRenderer.off(IPC.PRESS_WARNING, handler)
     }
   },
   app: {

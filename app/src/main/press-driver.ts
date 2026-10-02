@@ -18,6 +18,7 @@ export interface PressDriverEvents {
   state: (s: PressLiveState) => void
   rupture: () => void
   error: (err: Error) => void
+  lost: (info: { inSession: boolean; message: string }) => void
 }
 
 export class PressDriver extends EventEmitter {
@@ -96,8 +97,14 @@ export class PressDriver extends EventEmitter {
         }
         const ModbusRTUMod = await import('modbus-serial')
         const ModbusRTU = (ModbusRTUMod as any).default ?? ModbusRTUMod
-        this.modbusClient = new ModbusRTU()
-        await this.modbusClient.connectRTUBuffered(port, { baudRate: this.config.baud_rate })
+        const client = new ModbusRTU()
+        this.modbusClient = client
+        // A porta USB pode sumir no meio da leitura (cabo mexido, caixinha do indicador
+        // reiniciada, Windows desligando a USB). O modbus-serial repassa isso como 'error'
+        // e, sem ouvinte, o Node derruba o app inteiro (Raitz, 02/10: erro 433 na COM).
+        client.on('error', (e: Error) => this.portLost(client, e))
+        client.on('close', () => this.portLost(client, null))
+        await client.connectRTUBuffered(port, { baudRate: this.config.baud_rate })
         this.modbusClient.setID(this.config.modbus_address)
         this.modbusClient.setTimeout(500)
         // Porta aberta nao quer dizer prensa: so conta como conectada se o indicador responder
@@ -128,8 +135,38 @@ export class PressDriver extends EventEmitter {
     const client = this.modbusClient
     this.modbusClient = null
     if (client && client.isOpen) {
-      await new Promise<void>((res) => client.close(() => res()))
+      await new Promise<void>((res) => {
+        try {
+          client.close(() => res())
+        } catch {
+          res()
+        }
+      })
     }
+  }
+
+  /**
+   * Porta caiu sozinha. Para de ler sem zerar o ensaio (curva e pico ficam pro
+   * operador registrar e selar), solta a porta e deixa o startAutoConnect achar
+   * de novo. Avisa a tela pelo evento 'lost'.
+   */
+  private portLost(client: unknown, err: Error | null) {
+    if (client !== this.modbusClient) return // cliente velho ou fechado por nos
+    const wasConnected = this.connected
+    const inSession = this.pollHandle !== null
+    const motivo = err?.message || 'porta fechada'
+    this.log(`porta ${this.currentPort ?? 'n/d'} caiu${inSession ? ' durante o ensaio' : ''}: ${motivo}`)
+    if (this.pollHandle) {
+      clearInterval(this.pollHandle)
+      this.pollHandle = null
+    }
+    this.stopIdlePolling()
+    this.connected = false
+    this.currentPort = null
+    this.readFailures = 0
+    void this.closeClient().catch(() => undefined)
+    this.emitState()
+    if (wasConnected) this.emit('lost', { inSession, message: motivo })
   }
 
   /**
