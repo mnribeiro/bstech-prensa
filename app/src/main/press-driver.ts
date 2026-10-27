@@ -7,6 +7,7 @@
 //   reading -> PressReading individual
 //   state   -> PressLiveState snapshot
 //   rupture -> quando detector identifica queda > threshold
+//   autostart -> carga subiu com CP pronto na bancada e o ensaio comecou sozinho
 //
 // Detector de ruptura: queda brusca perto do pico (ver isRupture).
 
@@ -17,6 +18,7 @@ export interface PressDriverEvents {
   reading: (r: PressReading) => void
   state: (s: PressLiveState) => void
   rupture: () => void
+  autostart: (info: { kgf: number }) => void
   error: (err: Error) => void
   lost: (info: { inSession: boolean; message: string }) => void
 }
@@ -38,6 +40,11 @@ export class PressDriver extends EventEmitter {
   private currentPort: string | null = null
   private ruptureDetected = false
   private ruptureAt: number | null = null
+  // Inicio pela carga: a tela arma quando tem CP pronto; a prensa precisa ver a
+  // carga baixa antes de disparar, pra nunca comecar no meio de uma descarga
+  private autoArmed = false
+  private autoSawLow = false
+  private idleSamples: { at: number; kgf: number }[] = []
   // Estado interno do mock
   private mockTickMs = 0
   private mockPhase: 'idle' | 'loading' | 'ruptured' = 'idle'
@@ -246,9 +253,17 @@ export class PressDriver extends EventEmitter {
     this.emitState()
   }
 
+  /** A tela liga quando tem CP pronto na bancada e desliga no resto do tempo */
+  setAutoStart(armed: boolean): void {
+    if (armed === this.autoArmed) return
+    this.autoArmed = armed
+    this.autoSawLow = false
+  }
+
   startSession(): { ok: boolean; error?: string } {
     if (!this.connected) return { ok: false, error: 'Prensa nao conectada' }
     if (this.pollHandle) return { ok: true }
+    this.autoArmed = false
     this.stopIdlePolling()
     this.sessionStartedAt = Date.now()
     this.readings = []
@@ -361,10 +376,11 @@ export class PressDriver extends EventEmitter {
       if (this.pollHandle) return // sessão ativa cuida do polling
       try {
         const kgf = this.mode === 'mock' ? 0 : await this.readModbus()
-        if (kgf === null) return
+        if (kgf === null || this.pollHandle) return
         this.readFailures = 0
         this.lastSamples = [kgf]
         this.emitState()
+        this.watchAutoStart(kgf)
       } catch (err) {
         this.emit('error', err instanceof Error ? err : new Error(String(err)))
         // ~2s sem resposta fora de ensaio: cabo saiu ou prensa desligou
@@ -382,6 +398,28 @@ export class PressDriver extends EventEmitter {
       clearInterval(this.idleHandle)
       this.idleHandle = null
     }
+    this.idleSamples = []
+  }
+
+  // Raitz, 26/10: o CP rompeu em 21,35 tf com o ensaio parado e a gravacao comecou
+  // na descarga, selando 4,82 tf. Agora a carga subindo ja comeca o ensaio, e a
+  // curva leva junto o que a prensa leu logo antes de passar do limite.
+  private watchAutoStart(kgf: number) {
+    const now = Date.now()
+    this.idleSamples.push({ at: now, kgf })
+    while (now - this.idleSamples[0].at > AUTO_START_LOOKBACK_MS) this.idleSamples.shift()
+    if (!this.autoArmed) return
+    if (kgf < AUTO_START_KGF) {
+      this.autoSawLow = true
+      return
+    }
+    if (!this.autoSawLow) return
+    const seed = this.idleSamples
+    this.log(`ensaio iniciado pela carga (${Math.round(kgf)} kgf)`)
+    this.emit('autostart', { kgf })
+    if (!this.startSession().ok) return
+    this.sessionStartedAt = seed[0].at
+    for (const s of seed) this.handleSample(s.kgf, s.at)
   }
 
   private async poll() {
@@ -437,9 +475,9 @@ export class PressDriver extends EventEmitter {
     return value
   }
 
-  private handleSample(kgf: number) {
+  private handleSample(kgf: number, at = Date.now()) {
     if (!this.sessionStartedAt) return
-    const t = Date.now() - this.sessionStartedAt
+    const t = at - this.sessionStartedAt
     const sample: PressReading = { t, kgf: Math.round(kgf * 100) / 100 }
 
     this.readings.push(sample)
@@ -473,6 +511,8 @@ export class PressDriver extends EventEmitter {
 const RUPTURE_WINDOW_MS = 1200
 const RUPTURE_FAST_DROP = 0.08 // fracao do pico que precisa cair dentro da janela
 const RUPTURE_COLLAPSE = 0.5 // caiu pra menos da metade do pico: rompeu, em qualquer ritmo
+const AUTO_START_KGF = 500 // carga que comeca o ensaio sozinho (CP de 100 mm: ~0,6 MPa)
+const AUTO_START_LOOKBACK_MS = 1500 // leituras de antes do disparo que entram na curva
 
 export function isRupture(readings: { t: number; kgf: number }[], peakKgf: number, thresholdKgf: number): boolean {
   if (peakKgf <= 1000 || readings.length < 3) return false

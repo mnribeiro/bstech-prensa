@@ -63,6 +63,7 @@ async function setupPress() {
   press.on('reading', (r) => mainWindow?.webContents.send(IPC.PRESS_READING, r))
   press.on('state', (s) => mainWindow?.webContents.send(IPC.PRESS_STATE, s))
   press.on('rupture', () => mainWindow?.webContents.send(IPC.PRESS_RUPTURE))
+  press.on('autostart', () => mainWindow?.webContents.send(IPC.PRESS_AUTOSTART))
   press.on('error', (err) => console.error('[press]', err))
   press.on('lost', ({ inSession }) =>
     warn(
@@ -121,6 +122,7 @@ function registerIpc() {
   ipcMain.handle(IPC.PRESS_START_SESSION, async () => press?.startSession() ?? { ok: false })
   ipcMain.handle(IPC.PRESS_STOP_SESSION, async () => press?.stopSession())
   ipcMain.handle(IPC.PRESS_RESET, async () => press?.reset())
+  ipcMain.handle(IPC.PRESS_SET_AUTO_START, async (_e, armed: boolean) => press?.setAutoStart(armed))
   ipcMain.handle(IPC.PRESS_GET_STATE, async () => press?.getLiveState() ?? null)
 
   ipcMain.handle(IPC.APP_GET_CONFIG, async () => {

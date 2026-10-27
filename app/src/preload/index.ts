@@ -16,6 +16,12 @@ const api: ElectronAPI = {
     stopSession: () => ipcRenderer.invoke(IPC.PRESS_STOP_SESSION),
     reset: () => ipcRenderer.invoke(IPC.PRESS_RESET),
     getState: () => ipcRenderer.invoke(IPC.PRESS_GET_STATE),
+    setAutoStart: (armed) => ipcRenderer.invoke(IPC.PRESS_SET_AUTO_START, armed),
+    onAutoStart: (cb) => {
+      const handler = () => cb()
+      ipcRenderer.on(IPC.PRESS_AUTOSTART, handler)
+      return () => ipcRenderer.off(IPC.PRESS_AUTOSTART, handler)
+    },
     onReading: (cb) => {
       const handler = (_e: any, r: any) => cb(r)
       ipcRenderer.on(IPC.PRESS_READING, handler)

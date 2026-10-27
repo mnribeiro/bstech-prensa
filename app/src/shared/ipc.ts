@@ -12,10 +12,12 @@ export const IPC = {
   PRESS_STOP_SESSION: 'press:stop-session',
   PRESS_RESET: 'press:reset',
   PRESS_GET_STATE: 'press:get-state', // snapshot sob demanda do estado real
+  PRESS_SET_AUTO_START: 'press:set-auto-start', // CP pronto na bancada: carga subindo inicia o ensaio
   // Eventos broadcast (main -> renderer)
   PRESS_READING: 'press:reading', // PressReading individual
   PRESS_STATE: 'press:state', // PressLiveState snapshot
   PRESS_RUPTURE: 'press:rupture', // dispara quando ruptura detectada
+  PRESS_AUTOSTART: 'press:autostart', // ensaio comecou sozinho pela carga
   PRESS_WARNING: 'press:warning', // aviso pro operador (porta caiu, erro recuperado)
 
   // Config app
@@ -52,6 +54,8 @@ export interface ElectronAPI {
     stopSession: () => Promise<void>
     reset: () => Promise<void>
     getState: () => Promise<import('./types').PressLiveState | null>
+    setAutoStart: (armed: boolean) => Promise<void>
+    onAutoStart: (cb: () => void) => () => void
     onReading: (cb: (r: import('./types').PressReading) => void) => () => void
     onState: (cb: (s: import('./types').PressLiveState) => void) => () => void
     onRupture: (cb: () => void) => () => void

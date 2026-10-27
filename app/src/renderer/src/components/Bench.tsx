@@ -203,7 +203,7 @@ export function BenchSide({ onStart, onStop, onRupture, onSeal, startBlocker }: 
             >
               <Play size={18} fill="currentColor" /> Iniciar ensaio <span className="text-[11px] px-1.5 py-px rounded bg-white/15 font-semibold">Espaço</span>
             </button>
-            <div className="text-xs text-bs-text-mute text-center">{startBlocker ?? 'CP posicionado e prensa zerada'}</div>
+            <div className="text-xs text-bs-text-mute text-center">{startBlocker ?? 'CP posicionado e prensa zerada. Se a carga subir, o ensaio começa sozinho'}</div>
           </>
         )}
         {!ruptured && state.phase === 'loading' && (

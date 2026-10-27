@@ -185,6 +185,12 @@ function Inner() {
       if (afterRuptureRef.current) clearTimeout(afterRuptureRef.current)
       afterRuptureRef.current = setTimeout(() => void window.bstech.press.stopSession(), AFTER_RUPTURE_MS)
     })
+    // Carga subiu antes do clique: a prensa ja comecou a gravar, a tela so acompanha
+    const offAutoStart = window.bstech.press.onAutoStart(() => {
+      if (demoModeRef.current) return
+      dispatch({ type: 'reset_session' })
+      dispatch({ type: 'phase', phase: 'loading' })
+    })
     const offWarning = window.bstech.press.onWarning((message) => {
       if (demoModeRef.current) return
       dispatch({ type: 'toast', message })
@@ -193,6 +199,7 @@ function Inner() {
       offState()
       offReading()
       offRupture()
+      offAutoStart()
       offWarning()
       if (afterRuptureRef.current) clearTimeout(afterRuptureRef.current)
     }
@@ -249,6 +256,12 @@ function Inner() {
           ? 'Escolha no topo quem vai romper'
           : null
 
+  // CP pronto na bancada: a prensa comeca o ensaio sozinha quando a carga subir
+  const autoStartArmed = !!sp && !isDone(sp) && !startBlocker && state.phase === 'idle' && !state.demoMode && !calibration
+  useEffect(() => {
+    void window.bstech.press.setAutoStart(autoStartArmed)
+  }, [autoStartArmed])
+
   const handleStart = useCallback(async () => {
     if (!sp || isDone(sp) || startBlocker || state.phase !== 'idle') return
     if (state.demoMode) {
@@ -262,11 +275,13 @@ function Inner() {
       })
       return
     }
+    // A carga ja comecou o ensaio: o clique nao pode apagar o comeco da curva
+    if (state.press.session_started_at) return dispatch({ type: 'phase', phase: 'loading' })
     dispatch({ type: 'reset_session' })
     const r = await window.bstech.press.startSession()
     if (r.ok) dispatch({ type: 'phase', phase: 'loading' })
     else dispatch({ type: 'toast', message: r.error ?? 'Falha ao iniciar' })
-  }, [sp, startBlocker, state.phase, state.demoMode, state.demoOutcome, dispatch])
+  }, [sp, startBlocker, state.phase, state.demoMode, state.demoOutcome, state.press.session_started_at, dispatch])
 
   const handleStop = useCallback(async () => {
     demoHandleRef.current?.stop()
