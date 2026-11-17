@@ -6,10 +6,11 @@
 // Emite eventos:
 //   reading -> PressReading individual
 //   state   -> PressLiveState snapshot
-//   rupture -> quando detector identifica queda > threshold
+//   rupture -> queda forte que nao voltou dentro da janela de confirmacao
 //   autostart -> carga subiu com CP pronto na bancada e o ensaio comecou sozinho
 //
-// Detector de ruptura: queda brusca perto do pico (ver isRupture).
+// Detector de ruptura: queda brusca perto do pico (ver isRupture) abre uma suspeita;
+// so vira ruptura se a carga nao voltar a passar do pico em RUPTURE_CONFIRM_MS.
 
 import { EventEmitter } from 'node:events'
 import type { PressConfig, PressReading, PressLiveState } from '../shared/types'
@@ -40,6 +41,8 @@ export class PressDriver extends EventEmitter {
   private currentPort: string | null = null
   private ruptureDetected = false
   private ruptureAt: number | null = null
+  // Queda forte ainda sem confirmacao: instante e pico de quando caiu
+  private suspect: { t: number; peakKgf: number } | null = null
   // Inicio pela carga: a tela arma quando tem CP pronto; a prensa precisa ver a
   // carga baixa antes de disparar, pra nunca comecar no meio de uma descarga
   private autoArmed = false
@@ -272,6 +275,7 @@ export class PressDriver extends EventEmitter {
     this.lastSamples = []
     this.ruptureDetected = false
     this.ruptureAt = null
+    this.suspect = null
     this.mockTickMs = 0
     this.mockPhase = 'loading'
     // Pico simulado entre 18.000 e 32.000 kgf (CP comum 25-40 MPa pra D=100)
@@ -300,6 +304,7 @@ export class PressDriver extends EventEmitter {
     this.peakAtMs = null
     this.ruptureDetected = false
     this.ruptureAt = null
+    this.suspect = null
     this.lastSamples = []
     this.emitState()
   }
@@ -492,11 +497,33 @@ export class PressDriver extends EventEmitter {
     this.emit('reading', sample)
     this.emitState()
 
-    if (!this.ruptureDetected && isRupture(this.readings, this.peakKgf, this.config.rupture_drop_threshold_kgf)) {
+    if (!this.ruptureDetected) this.watchRupture(kgf, t)
+  }
+
+  // Raitz, 17/11: o CP 009149 subiu a 2,26 tf, caiu pra 1,56 tf assentando e depois
+  // rompeu em 25,4 MPa. Uma queda de assentamento um pouco maior ja disparava ruptura
+  // e a tela parava o ensaio ali. O que separa assentar de romper e o que vem depois
+  // da queda: assentando, a carga volta e passa do pico; rompido, nao volta.
+  private watchRupture(kgf: number, t: number) {
+    const s = this.suspect
+    if (s) {
+      if (kgf > s.peakKgf) {
+        this.log(`queda depois de ${Math.round(s.peakKgf)} kgf era assentamento, a carga voltou (${Math.round(kgf)} kgf)`)
+        this.suspect = null
+        return
+      }
+      if (t - s.t < RUPTURE_CONFIRM_MS) return
+      this.suspect = null
       this.ruptureDetected = true
-      this.ruptureAt = t
+      this.ruptureAt = s.t
+      this.log(`ruptura confirmada, pico ${Math.round(this.peakKgf)} kgf`)
       this.emit('rupture')
       this.emitState()
+      return
+    }
+    if (isRupture(this.readings, this.peakKgf, this.config.rupture_drop_threshold_kgf)) {
+      this.suspect = { t, peakKgf: this.peakKgf }
+      this.log(`suspeita de ruptura com pico ${Math.round(this.peakKgf)} kgf, esperando a carga`)
     }
   }
 
@@ -511,9 +538,18 @@ export class PressDriver extends EventEmitter {
 const RUPTURE_WINDOW_MS = 1200
 const RUPTURE_FAST_DROP = 0.08 // fracao do pico que precisa cair dentro da janela
 const RUPTURE_COLLAPSE = 0.5 // caiu pra menos da metade do pico: rompeu, em qualquer ritmo
+// Prazo pra carga voltar e passar do pico depois de uma queda forte. Assentar de
+// 2,26 tf ate 0,9 tf num CP de 100 mm pede ~1,4 tf de volta: 3,8 s na velocidade media
+// da NBR 5739 (0,45 MPa/s) e 5,7 s na minima (0,3 MPa/s). 6 s cobre ate a minima. A
+// ruptura de verdade aparece no maximo 6 s depois e o botao de registrar o pico vale
+// nesse meio tempo.
+export const RUPTURE_CONFIRM_MS = 6000
 const AUTO_START_KGF = 500 // carga que comeca o ensaio sozinho (CP de 100 mm: ~0,6 MPa)
 const AUTO_START_LOOKBACK_MS = 1500 // leituras de antes do disparo que entram na curva
 
+// Queda forte perto do pico: abre suspeita de ruptura (quem confirma e o watchRupture).
+// Piso de 1000 kgf: abaixo disso a prensa ainda esta encostando (1 tf num CP de 100 mm
+// e 1,25 MPa, nenhum concreto rompe ai). CP fraco rompendo em 3 tf passa com folga.
 export function isRupture(readings: { t: number; kgf: number }[], peakKgf: number, thresholdKgf: number): boolean {
   if (peakKgf <= 1000 || readings.length < 3) return false
   const last = readings[readings.length - 1]

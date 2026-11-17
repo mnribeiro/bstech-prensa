@@ -25,7 +25,7 @@ class FakeModbus extends EventEmitter {
 }
 vi.mock('modbus-serial', () => ({ default: FakeModbus }))
 
-import { PressDriver } from './press-driver'
+import { PressDriver, RUPTURE_CONFIRM_MS } from './press-driver'
 
 const config = {
   port: 'COM6',
@@ -130,6 +130,8 @@ describe('ensaio comeca pela carga', () => {
     await vi.advanceTimersByTimeAsync(400)
     client.carga = 500 // rompeu
     await vi.advanceTimersByTimeAsync(300)
+    expect(press.getLiveState().rupture_detected).toBe(false) // suspeita, esperando a carga
+    await vi.advanceTimersByTimeAsync(RUPTURE_CONFIRM_MS)
     expect(press.getLiveState().rupture_detected).toBe(true)
 
     press.setAutoStart(false)
